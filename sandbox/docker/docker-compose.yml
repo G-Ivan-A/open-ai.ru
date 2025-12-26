@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # Backend API
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: sandbox-backend
+    ports:
+      - "${PORT:-3001}:3001"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=3001
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DOCKER_SOCKET=/var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../backend/logs:/app/logs
+    depends_on:
+      - redis
+    networks:
+      - sandbox-network
+    restart: unless-stopped
+
+  # Redis for rate limiting
+  redis:
+    image: redis:7-alpine
+    container_name: sandbox-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - sandbox-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # Frontend UI
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: sandbox-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3001
+    depends_on:
+      - backend
+    networks:
+      - sandbox-network
+    restart: unless-stopped
+
+networks:
+  sandbox-network:
+    driver: bridge
+    name: sandbox-network
+
+volumes:
+  redis-data:
+    driver: local

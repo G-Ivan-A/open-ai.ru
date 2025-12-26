@@ -1,0 +1,10 @@
+# Python dependencies for text-analysis agent
+# Note: Using minimal dependencies for demo purposes
+# In production, consider using more sophisticated NLP libraries like:
+# - transformers
+# - spacy
+# - nltk
+# - textblob
+
+# No external dependencies needed for this simple demo implementation
+# All functionality is implemented using Python standard library
