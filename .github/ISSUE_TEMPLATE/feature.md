@@ -1,43 +1,55 @@
----
-name: Feature
-about: Product feature or user-facing workflow.
-title: "[FEATURE] "
-labels: feature, needs-human-review
-assignees: ""
----
-
 # Feature
 
-## User Story
+**Issue Type:** Feature  
+**Priority:** (High / Medium / Low)  
+**Mode:** Structured Mode / Creative Mode
 
-As a TODO, I want TODO, so that TODO.
+---
 
-## Product Context
+### Context
 
-Describe the product area and why the feature matters.
+### User Story
 
-## Scope
+As a [тип пользователя], I want to [действие], so that [польза].
 
-Included:
+### Operating Mode
 
-- TODO
+- **Structured Mode** — строгий режим
+- **Creative Mode** — разрешено улучшения в рамках ограничений
 
-Excluded:
+### Functional Requirements
 
-- TODO
+- FR-1: ...
+- FR-2: ...
 
-## Contracts
+### Non-Functional Requirements
 
-List API, event, or AI-agent contracts that must be created or changed.
+### Constraints
 
-- TODO
+### Allowed / Forbidden Changes
 
-## Acceptance Criteria
+**Allowed:**
+- ...
 
-- [ ] TODO
+**Forbidden:**
+- ...
 
-## Validation
+### Architecture Impact
 
-Describe required tests, screenshots, or manual checks.
+### AI Guidance & Constraints
 
-- TODO
+Правила для AI-агентов (Codex / Cursor / Claude / Qwen):
+
+### AI Self-Review Checklist
+
+Перед отправкой PR выполнить самопроверку по `prompts/reviews/ai-self-review.md` (если файл существует).
+
+### Acceptance Criteria
+
+- [ ] ...
+- [ ] Соответствует Design System
+- [ ] ...
+
+### Human Review Required
+
+**Да**

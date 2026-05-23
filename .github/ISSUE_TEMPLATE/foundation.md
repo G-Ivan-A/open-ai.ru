@@ -1,45 +1,48 @@
----
-name: Foundation / Governance
-about: Repository structure, governance, architecture, contracts, or AI-native SDLC work.
-title: "[FOUNDATION] "
-labels: foundation, governance, needs-human-review
-assignees: ""
----
-
 # Foundation / Governance
 
-## Context
+**Issue Type:** Foundation  
+**Priority:** (High / Medium / Low)  
+**Mode:** Structured Mode / Creative Mode
 
-Describe the foundation or governance problem this issue addresses.
+---
 
-## Objective
+### Context
 
-What should be true after this issue is completed?
+### User Story
 
-## Scope
+As a [роль], I want to [действие], so that [цель].
 
-Included:
+### Operating Mode
 
-- TODO
+- **Structured Mode** — строгий режим (по умолчанию)
+- **Creative Mode** — разрешено предлагать улучшения
 
-Excluded:
+### Functional Requirements
 
-- TODO
+- FR-1: ...
+- FR-2: ...
 
-## Acceptance Criteria
+### Constraints
 
-- [ ] TODO
+### Allowed / Forbidden Changes
 
-## Operating Mode
+**Allowed:**
+- ...
 
-- [ ] Structured Mode
-- [ ] Creative Mode with explicit assumptions
+**Forbidden:**
+- ...
 
-## Human Review
+### Architecture Impact
 
-Review focus:
+### AI Guidance & Constraints
 
-- [ ] Architecture
-- [ ] Governance
-- [ ] Security
-- [ ] Product ownership
+Правила для AI-агентов (Codex / Cursor / Claude / Qwen):
+
+### Acceptance Criteria
+
+- [ ] ...
+- [ ] ...
+
+### Human Review Required
+
+**Да**
