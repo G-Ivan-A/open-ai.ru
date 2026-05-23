@@ -1,0 +1,20 @@
+name: Validate Repository Structure
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - issue-24-d0e0bcc17e68
+
+jobs:
+  validate-structure:
+    name: Validate approved skeleton
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run structure validation
+        run: ./tests/validate-repository-structure.sh
