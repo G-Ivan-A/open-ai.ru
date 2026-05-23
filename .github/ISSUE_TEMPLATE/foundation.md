@@ -6,6 +6,8 @@ labels: foundation, governance, needs-human-review
 assignees: ""
 ---
 
+# Foundation / Governance
+
 ## Context
 
 Describe the foundation or governance problem this issue addresses.

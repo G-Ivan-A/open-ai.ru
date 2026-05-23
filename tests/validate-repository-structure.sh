@@ -93,7 +93,6 @@ required_directories=(
 required_files=(
   ".github/ISSUE_TEMPLATE/foundation.md"
   ".github/ISSUE_TEMPLATE/feature.md"
-  ".github/ISSUE_TEMPLATE/research.md"
   ".github/pull_request_template.md"
   ".github/workflows/validate-structure.yml"
   ".editorconfig"
