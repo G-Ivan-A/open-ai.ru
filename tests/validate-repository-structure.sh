@@ -31,6 +31,7 @@ required_root_entries=(
   ".env.example"
   ".gitattributes"
   ".github"
+  ".gitkeep"
   ".gitignore"
   "AI_GOVERNANCE.md"
   "CHANGELOG.md"
@@ -107,6 +108,7 @@ required_files=(
   "CHANGELOG.md"
   "LICENSE"
   "docs/governance/repository-labels.md"
+  "tests/validate-issue-templates.sh"
   "tests/validate-repository-structure.sh"
 )
 
@@ -146,6 +148,8 @@ done
 for path in "${legacy_paths[@]}"; do
   reject_path "$path"
 done
+
+"$ROOT_DIR/tests/validate-issue-templates.sh"
 
 if [[ "$failures" -gt 0 ]]; then
   printf '\nRepository structure validation failed with %d issue(s).\n' "$failures" >&2
