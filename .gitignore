@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.*
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+coverage/
+
+# Runtime and local environment
+.env
+.env.*
+!.env.example
+*.log
+
+# Tool caches
+.turbo/
+.cache/
+.eslintcache
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
+*.swp
