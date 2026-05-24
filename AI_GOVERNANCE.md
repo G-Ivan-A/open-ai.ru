@@ -91,3 +91,11 @@
 
 **Версия:** 1.0  
 **Владелец:** Иван Гулиенко
+
+---
+
+## Related Documents
+
+- [`AI_RULES.md`](AI_RULES.md)
+- [`docs/governance/AI_RULES.md`](docs/governance/AI_RULES.md)
+- [`docs/governance/DOCUMENT_UPDATE_POLICY.md`](docs/governance/DOCUMENT_UPDATE_POLICY.md)
