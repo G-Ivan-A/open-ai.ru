@@ -1,0 +1,99 @@
+name: AI Implementation Task
+description: Structured task for an AI contributor (Codex / Cursor / Claude / Qwen) to implement within governance boundaries.
+title: "[AI-TASK] <concise outcome>"
+labels:
+  - ai-native
+  - needs-human-review
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when delegating an implementation task to an AI agent.
+        Read [AI_GOVERNANCE.md](../../AI_GOVERNANCE.md) and [docs/governance/AI_RULES.md](../../docs/governance/AI_RULES.md) before opening the task.
+  - type: dropdown
+    id: operating_mode
+    attributes:
+      label: Operating Mode
+      description: Defaults to Structured Mode. Switch to Creative Mode only when proposals are explicitly welcome.
+      options:
+        - Structured Mode
+        - Creative Mode
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why this task exists, links to issues, ADRs, or contracts that frame it.
+      placeholder: |
+        - Problem statement
+        - Related issues / ADRs / contracts
+        - Constraints from previous work
+    validations:
+      required: true
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Functional Requirements
+      description: List the requirements as FR-1, FR-2, ...
+      placeholder: |
+        - FR-1: ...
+        - FR-2: ...
+    validations:
+      required: true
+  - type: textarea
+    id: allowed_forbidden
+    attributes:
+      label: Allowed and Forbidden Changes
+      description: Be explicit. Anything not listed as allowed is out of scope.
+      placeholder: |
+        Allowed:
+        - ...
+        Forbidden:
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: architecture_impact
+    attributes:
+      label: Architecture Impact
+      description: Does this change require an ADR? If so, reference the draft or open a new one.
+      placeholder: |
+        - Affected modules
+        - Required ADR (yes/no, link)
+        - Contract updates
+  - type: textarea
+    id: ai_guidance
+    attributes:
+      label: AI Guidance and Constraints
+      description: Reuse rules from AI_GOVERNANCE.md and add task-specific guardrails.
+      placeholder: |
+        - Reuse: ...
+        - Avoid: ...
+        - Self-review checklist: prompts/reviews/ai-self-review.md
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Concrete, testable checks the pull request must satisfy.
+      placeholder: |
+        - [ ] ...
+        - [ ] tests/validate-repository-structure.sh passes
+        - [ ] Documentation updated where applicable
+    validations:
+      required: true
+  - type: textarea
+    id: human_review
+    attributes:
+      label: Human Review Focus
+      description: Tell reviewers where to look.
+      placeholder: |
+        - Governance
+        - Architecture
+        - Security
+        - Product
+    validations:
+      required: true
