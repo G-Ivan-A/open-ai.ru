@@ -34,6 +34,10 @@ As a [роль], I want to [действие], so that [цель].
 
 ### Architecture Impact
 
+### Related Documents
+
+- ...
+
 ### AI Guidance & Constraints
 
 Правила для AI-агентов (Codex / Cursor / Claude / Qwen):
