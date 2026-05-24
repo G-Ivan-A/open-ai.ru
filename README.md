@@ -1,60 +1,86 @@
 # open-ai.ru
 
-Production-ready AI-assisted portal for the open-ai.ru ecosystem.
+**AI-Native Production Portal Platform**
 
-This repository starts from a governance-first skeleton. It defines the operational boundaries for human contributors and AI agents before product code is introduced.
+Официальный репозиторий разработки production-ready портала с личным кабинетом с использованием управляемой AI-assisted разработки.
 
-## Repository Purpose
+---
 
-- Maintain a clear feature-first application structure.
-- Keep API, event, and AI-agent contracts explicit before implementation.
-- Make architectural decisions reproducible through ADRs and governance docs.
-- Separate production portal work from educational and research materials.
+## 🎯 О проекте
 
-Educational and research materials are maintained in a separate repository:
+Мы создаём **не просто портал**, а воспроизводимую систему управляемой AI-assisted разработки сложных веб-приложений.
 
-https://github.com/G-Ivan-A/research-and-edu-ai-lab
+**Главная ценность** — в методологии:
+- Human сохраняет полный контроль над архитектурой и требованиями
+- AI-агенты работают эффективно внутри чётких контрактов
+- Все решения traceable и могут быть использованы для обучения
 
-## Approved Skeleton
+---
 
-```text
-open-ai.ru/
-├── .github/
-│   ├── ISSUE_TEMPLATE/
-│   ├── workflows/
-│   └── pull_request_template.md
-├── app/
-├── components/ui/
-├── features/
-├── contracts/
-├── services/
-├── integrations/
-├── lib/
-├── hooks/
-├── stores/
-├── prompts/
-├── docs/
-├── scripts/
-├── infrastructure/
-├── tests/
-└── public/
-```
+## 📂 Структура проекта
 
-## Current Status
+| Репозиторий | Назначение | Статус |
+|-------------|----------|--------|
+| **[open-ai.ru](https://github.com/G-Ivan-A/open-ai.ru)** (текущий) | Production-код, архитектура, governance | **Active** |
+| **[research-and-edu-ai-lab](https://github.com/G-Ivan-A/research-and-edu-ai-lab)** | Исследования, уроки, методология | Active |
 
-Foundation phase. Product implementation, framework selection, and runtime architecture are intentionally pending.
+---
 
-## Validation
+## 🛠 Основные принципы
 
-Run the structure validation locally:
+- **Governance-First** — правила и архитектура определяются до кода
+- **Controlled AI-Assisted Development**
+- **Dual Mode**: Structured Mode и Creative Mode
+- **Human Review** обязателен для важных изменений
+
+---
+
+## 📋 Как создавать задачи
+
+В проекте используются два шаблона:
+- **Foundation / Governance** — инфраструктура, архитектура, правила
+- **Feature** — разработка функционала портала
+
+Подробные шаблоны находятся в [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/).
+
+---
+
+## 📁 Ключевые документы
+
+- [`AI_GOVERNANCE.md`](AI_GOVERNANCE.md) — главный контракт для AI-агентов
+- [`AI_QUICK_REF.md`](AI_QUICK_REF.md) — шпаргалка для AI
+- [`PRODUCT_VISION.md`](PRODUCT_VISION.md) — видение продукта
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — правила участия
+- [`ROADMAP.md`](ROADMAP.md) — план развития
+
+---
+
+## 🏗 Технологический стек
+
+- **Frontend**: Next.js (App Router) + TypeScript
+- **UI**: Tailwind CSS + shadcn/ui + Radix
+- **State**: Zustand / TanStack
+- **AI Tools**: Cursor, Claude, Codex, Qwen
+- **Governance**: ADR, Contracts, AI Rules
+
+---
+
+## 🚀 Быстрый старт
 
 ```bash
-./tests/validate-repository-structure.sh
+git clone https://github.com/G-Ivan-A/open-ai.ru.git
+cd open-ai.ru
+cp .env.example .env.local
 ```
 
-## TODO
+Далее ознакомьтесь с:
+1. `AI_GOVERNANCE.md`
+2. `AI_QUICK_REF.md`
+3. `CONTRIBUTING.md`
 
-- Select the production application framework.
-- Define the first API and event contracts.
-- Add ADRs for major architecture decisions.
-- Replace placeholder files with implementation-specific documentation as features are created.
+---
+
+**Проект находится на этапе Foundation & Governance Setup (Май 2026).**
+
+**Автор:** Иван Гулиенко (Founder & PO)  
+**Поддержка:** Команда G
