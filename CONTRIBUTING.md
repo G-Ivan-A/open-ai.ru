@@ -2,6 +2,12 @@
 
 This repository is in governance foundation mode. Contributions should preserve traceability and avoid introducing product code before the related structure, contracts, and decisions are documented.
 
+## 🌐 External Teams & Onboarding
+
+New to this project or joining as an external team?<br>
+→ Read [PORTAL_BUILDING_METHODOLOGY.md](docs/architecture/PORTAL_BUILDING_METHODOLOGY.md) to understand HOW we build this portal (process, principles, AI interaction).<br>
+→ Then follow the technical contribution guidelines below.
+
 ## Workflow
 
 1. Start from a GitHub issue with clear acceptance criteria.
