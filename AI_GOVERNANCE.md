@@ -1,52 +1,93 @@
-# AI Governance
+# AI_GOVERNANCE.md
 
-This document defines the baseline rules for AI-assisted development in the open-ai.ru repository.
+**Главный операционный контракт проекта open-ai.ru**
 
-## Purpose
+---
 
-- Keep AI-generated changes reviewable, traceable, and reproducible.
-- Separate structured governance work from exploratory or creative work.
-- Require explicit contracts and decisions before implementation details spread across the codebase.
+## 🎯 Цель документа
 
-## Operating Modes
+Определить правила **Controlled AI-Assisted Development** — управляемой разработки с использованием ИИ-агентов.
 
-### Structured Mode
+---
 
-Use Structured Mode for repository structure, governance files, contracts, CI, security-sensitive code, data models, public APIs, and release workflows.
+## 📋 Основные принципы
 
-Required behavior:
+1. Human-in-Control — архитектура и governance определяются человеком.
+2. AI работает строго внутри заданных контрактов.
+3. Traceability и reproducibility всех важных решений.
+4. Dual Mode Operation (Structured / Creative).
+5. Минимизация токенов и фокус на выполнении задачи.
 
-- Follow existing repository structure.
-- Prefer small, auditable changes.
-- Add validation for structural or behavioral requirements.
-- Record architecture decisions in `docs/architecture/adr/`.
+---
+
+## 🤖 AI Contributors
+
+- Codex
+- Cursor
+- Claude
+- Qwen
+
+---
+
+## 🔄 Operating Modes
+
+### Structured Mode (по умолчанию)
+- Максимальная предсказуемость
+- Минимальный креатив
+- Строгое следование контрактам и Design System
 
 ### Creative Mode
+- Разрешено предлагать улучшения
+- Только в рамках Allowed Changes
+- Обязательное обоснование
 
-Use Creative Mode for product exploration, UX proposals, prompt experiments, and architecture options.
+Режим всегда указывается в Issue.
 
-Required behavior:
+---
 
-- Mark assumptions explicitly.
-- Keep experimental work isolated until accepted.
-- Convert accepted ideas into Structured Mode tasks before production implementation.
+## 📏 Основные правила для AI-агентов
 
-## AI Agent Workflow
+### Обязательный минимум контекста
+При получении Issue агент **должен**:
+1. Внимательно прочитать текущую Issue (особенно Operating Mode, Constraints, Allowed/Forbidden Changes).
+2. Применить правила из `AI_GOVERNANCE.md`.
+3. Следовать шаблону Issue.
 
-1. Read the linked issue and relevant comments.
-2. Identify the smallest complete change that satisfies the acceptance criteria.
-3. Add or update tests before finalizing the change.
-4. Preserve traceability through commits, PR description, and ADRs when needed.
-5. Request human review for governance, product, security, or architectural changes.
+**Не требуется** при каждой задаче полностью перечитывать остальные документы.
 
-## Review Requirements
+---
 
-- Human review is required before merging foundation, governance, release, security, or architecture changes.
-- AI agents must not remove previously accepted product behavior without an explicit issue requirement.
-- PRs must describe validation performed and remaining risks.
+### Приоритет документов (токен-оптимизация)
 
-## TODO
+| Приоритет | Документы                    | Когда читать          |
+|-----------|------------------------------|-----------------------|
+| 🔴 Высший | Текущая Issue + AI_GOVERNANCE.md | Всегда               |
+| 🟡 Средний| AI_RULES.md, docs/governance/ | При кодогенерации     |
+| 🟢 Низкий | Остальные документы           | Только при необходимости |
 
-- Define security and privacy review gates.
-- Add prompt review rules for production AI workflows.
-- Define ownership for contracts and ADR approval.
+---
+
+### 🚨 Когда эскалировать неоднозначность
+Если возникает:
+- Противоречие между Issue и контрактами
+- Неясность в Allowed/Forbidden
+- Архитектурное решение без ADR
+
+→ Агент должен:
+1. Зафиксировать вопрос в комментарии
+2. Предложить 1-2 варианта
+3. Запросить clarification у человека
+4. НЕ принимать решение самостоятельно
+
+---
+
+### 📋 Чеклист перед генерацией кода
+- Понял Operating Mode?
+- Проверил Allowed/Forbidden Changes?
+- Есть ли готовый компонент для reuse?
+- Соответствует AI_RULES.md?
+
+---
+
+**Версия:** 1.0  
+**Владелец:** Иван Гулиенко
