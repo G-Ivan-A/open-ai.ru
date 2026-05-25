@@ -16,6 +16,7 @@ The format will follow a simple date-based history until a release process is se
 - Prompt governance baseline at `prompts/README.md`.
 - GitHub issue config and AI implementation task template (`.github/ISSUE_TEMPLATE/config.yml`, `.github/ISSUE_TEMPLATE/ai_implementation_task.yml`).
 - Product baselines: `docs/product/PRODUCT_VISION.md`, `docs/product/MVP_SCOPE.md`.
+- Product audit package for issue #42: repository audit/options, improvement roadmap, implementation backlog, and product vision options in Markdown and HTML.
 - Architecture baselines: `docs/architecture/ARCHITECTURE.md`, `docs/architecture/DOMAIN_MODEL.md`.
 - Development standards: `docs/development/CODING_STANDARDS.md`, `docs/development/API_STANDARDS.md`, `docs/development/ERROR_HANDLING.md`.
 - Testing strategy at `docs/testing/TESTING_STRATEGY.md`.
