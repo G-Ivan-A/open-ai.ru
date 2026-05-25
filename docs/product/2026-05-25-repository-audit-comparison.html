@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Repository Concept Audit and Improvement Options</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.55; max-width: 1180px; margin: 40px auto; padding: 0 24px; color: #1f2933; }
+    h1, h2 { color: #102a43; }
+    table { border-collapse: collapse; width: 100%; margin: 16px 0 28px; font-size: 14px; }
+    th, td { border: 1px solid #cbd5e1; padding: 8px 10px; vertical-align: top; }
+    th { background: #edf2f7; text-align: left; }
+    .meta { background: #f8fafc; border-left: 4px solid #2563eb; padding: 12px 16px; }
+    .callout { background: #fff7ed; border-left: 4px solid #f97316; padding: 12px 16px; }
+    a { color: #1d4ed8; }
+    code { background: #eef2f7; padding: 2px 4px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Repository Concept Audit and Improvement Options</h1>
+  <div class="meta">
+    <p><strong>Status:</strong> draft for stakeholder agreement<br>
+    <strong>Date:</strong> 2026-05-25<br>
+    <strong>Issue:</strong> <a href="https://github.com/G-Ivan-A/open-ai.ru/issues/42">G-Ivan-A/open-ai.ru#42</a><br>
+    <strong>Canonical source:</strong> <code>docs/product/2026-05-25-repository-audit-comparison.md</code></p>
+  </div>
+
+  <h2>Target File Set</h2>
+  <table>
+    <tr><th>Requested artifact</th><th>Markdown</th><th>HTML</th></tr>
+    <tr><td>Repository audit and comparison table</td><td><code>docs/product/2026-05-25-repository-audit-comparison.md</code></td><td><code>docs/product/2026-05-25-repository-audit-comparison.html</code></td></tr>
+    <tr><td>Roadmap draft</td><td><code>docs/product/2026-05-25-improvement-roadmap.md</code></td><td><code>docs/product/2026-05-25-improvement-roadmap.html</code></td></tr>
+    <tr><td>Backlog draft</td><td><code>docs/product/2026-05-25-implementation-backlog.md</code></td><td><code>docs/product/2026-05-25-implementation-backlog.html</code></td></tr>
+    <tr><td>Product vision options</td><td><code>docs/product/2026-05-25-product-vision-options.md</code></td><td><code>docs/product/2026-05-25-product-vision-options.html</code></td></tr>
+  </table>
+
+  <h2>Executive Conclusion</h2>
+  <p>The repository is coherent as a governance-first foundation, but it is not yet aligned with the full product concept from issue #42. The strongest assets are controlled AI-assisted development rules, feature-oriented skeleton, validation scripts, and early product/architecture baselines. The main gaps are product definition, catalog model, solution intake criteria, license policy, workspace/RBAC model, and education integration boundary.</p>
+  <div class="callout">
+    <p><strong>Recommended direction:</strong> keep the governance-first foundation, then make <code>open-ai.ru</code> a curated Open AI Solutions Hub with role-based project workspaces. Start with a narrow catalog contract, one reference solution, and a controlled workspace model.</p>
+  </div>
+
+  <h2>Concept Fit</h2>
+  <table>
+    <tr><th>Concept dimension</th><th>Current state</th><th>Fit</th><th>Recommended next action</th></tr>
+    <tr><td>Open-source AI business solutions</td><td>Catalog and integrations are named, but no schema or intake policy exists.</td><td>Partial</td><td>Add solution-card contract and review checklist.</td></tr>
+    <tr><td>Deployable components</td><td>Deployment tiers from older issues are not captured in current docs.</td><td>Weak</td><td>Add Starter, Business, Cloud Pro, Cloud Enterprise model.</td></tr>
+    <tr><td>Commercial use with attribution</td><td><code>LICENSE</code> is pending.</td><td>Weak</td><td>Open license decision issue/ADR.</td></tr>
+    <tr><td>AI agents</td><td>AI governance, prompts, and contracts directories exist.</td><td>Good foundation</td><td>Add AI-agent contract template.</td></tr>
+    <tr><td>Open education</td><td>Education sync boundary exists.</td><td>Good boundary</td><td>Define course metadata without hosting tutorials here.</td></tr>
+    <tr><td>Corporate projects by role</td><td>Not modeled beyond account/profile/session.</td><td>Weak</td><td>Add Organization, Project, Membership, Role, Entitlement, RepositoryAccess.</td></tr>
+    <tr><td>Distributed teams</td><td>Docs focus on AI-assisted SDLC, not collaboration workspaces.</td><td>Weak</td><td>Add collaboration model and security assumptions.</td></tr>
+    <tr><td>Governance-first development</td><td>Strong rules and validation exist.</td><td>Strong</td><td>Clarify canonical vs summary documents.</td></tr>
+  </table>
+
+  <h2>Duplication and Ambiguity</h2>
+  <table>
+    <tr><th>Area</th><th>Observation</th><th>Risk</th><th>Action</th></tr>
+    <tr><td>Product vision</td><td>Root and nested product vision files overlap.</td><td>Wrong file may be updated.</td><td>Mark root as public summary and nested file as working source.</td></tr>
+    <tr><td>AI rules</td><td>Root and governance AI rules overlap.</td><td>Conflicting agent instructions.</td><td>Define root as quick constraints and nested file as full contract.</td></tr>
+    <tr><td>Roadmap</td><td>Phase-based roadmap is not connected to issues.</td><td>Strategy does not become delivery.</td><td>Use roadmap/backlog drafts to seed milestones.</td></tr>
+    <tr><td>Research boundary</td><td>Research docs exist while methodology warns against independent research in this repo.</td><td>Education/product confusion.</td><td>Clarify research as decision support only.</td></tr>
+    <tr><td>Legacy paths</td><td>Validator rejects <code>CONCEPT.md</code> and <code>solutions/</code>, while older issues reference them.</td><td>Contributors may follow stale paths.</td><td>Use <code>docs/product/</code> and feature/contract paths.</td></tr>
+    <tr><td>CI trigger</td><td>Workflow includes an old issue branch.</td><td>Repository hygiene issue.</td><td>Open cleanup issue.</td></tr>
+  </table>
+
+  <h2>Improvement Options</h2>
+  <table>
+    <tr><th>Option</th><th>Description</th><th>Pros</th><th>Cons</th><th>Recommendation</th></tr>
+    <tr><td>A</td><td>Stay governance-first only.</td><td>Low risk.</td><td>Does not answer full concept.</td><td>Keep as foundation only.</td></tr>
+    <tr><td>B</td><td>Catalog-first hub.</td><td>Fast product clarity.</td><td>Corporate workspace remains shallow.</td><td>Use as Phase 1.</td></tr>
+    <tr><td>C</td><td>Workspace-first platform.</td><td>Direct enterprise fit.</td><td>High security complexity.</td><td>Defer until catalog model is stable.</td></tr>
+    <tr><td>D</td><td>Education-first portal.</td><td>Good adoption channel.</td><td>Can violate repo boundaries.</td><td>Keep as linked track.</td></tr>
+    <tr><td>E</td><td>Phased hybrid.</td><td>Best fit across current repo and issue #42.</td><td>Requires sequencing discipline.</td><td>Recommended.</td></tr>
+  </table>
+
+  <h2>Best Practice References</h2>
+  <ul>
+    <li><a href="https://opensource.org/ai/open-source-ai-definition">Open Source AI Definition 1.0, OSI</a></li>
+    <li><a href="https://www.apache.org/legal/apply-license">Apache License 2.0 guidance</a> and <a href="https://opensource.org/license/mit">MIT License, OSI</a></li>
+    <li><a href="https://huggingface.co/docs/hub/main/en/index">Hugging Face Hub docs</a></li>
+    <li><a href="https://www.cncf.io/blog/2024/09/17/artifact-hub-becomes-a-cncf-incubating-project/">Artifact Hub / CNCF</a></li>
+    <li><a href="https://openedx.org/">Open edX</a></li>
+    <li><a href="https://www.linuxfoundation.org/press/lf-ai-data-foundation-launches-open-platform-for-enterprise-ai-opea">Open Platform for Enterprise AI</a></li>
+    <li><a href="https://openssf.org/projects/scorecard/">OpenSSF Scorecard</a> and <a href="https://slsa.dev/spec/latest/">SLSA</a></li>
+    <li><a href="https://modelcontextprotocol.io/specification/latest">Model Context Protocol</a> and <a href="https://a2a-protocol.org/latest/">Agent2Agent Protocol</a></li>
+  </ul>
+
+  <h2>Recommended Decision</h2>
+  <p>Adopt option E: <code>open-ai.ru</code> is a governance-led portal for discovering, evaluating, and deploying commercially usable open-source AI agents and business automation solutions, with role-based project workspaces for open and licensed corporate collaboration, and an education track connected through controlled sync.</p>
+</body>
+</html>

@@ -137,6 +137,7 @@ required_files=(
   "docs/testing/TESTING_STRATEGY.md"
   "prompts/README.md"
   "tests/validate-issue-templates.sh"
+  "tests/validate-product-audit-deliverables.sh"
   "tests/validate-repository-structure.sh"
 )
 
@@ -178,6 +179,7 @@ for path in "${legacy_paths[@]}"; do
 done
 
 "$ROOT_DIR/tests/validate-issue-templates.sh"
+"$ROOT_DIR/tests/validate-product-audit-deliverables.sh"
 
 if [[ "$failures" -gt 0 ]]; then
   printf '\nRepository structure validation failed with %d issue(s).\n' "$failures" >&2

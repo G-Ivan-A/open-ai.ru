@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Product Vision Options</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.55; max-width: 1180px; margin: 40px auto; padding: 0 24px; color: #1f2933; }
+    h1, h2 { color: #102a43; }
+    table { border-collapse: collapse; width: 100%; margin: 16px 0 28px; font-size: 14px; }
+    th, td { border: 1px solid #cbd5e1; padding: 8px 10px; vertical-align: top; }
+    th { background: #edf2f7; text-align: left; }
+    .meta { background: #f8fafc; border-left: 4px solid #2563eb; padding: 12px 16px; }
+    .recommendation { background: #ecfdf5; border-left: 4px solid #059669; padding: 12px 16px; }
+    code { background: #eef2f7; padding: 2px 4px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Product Vision Options</h1>
+  <div class="meta">
+    <p><strong>Status:</strong> draft for stakeholder agreement<br>
+    <strong>Date:</strong> 2026-05-25<br>
+    <strong>Issue:</strong> <a href="https://github.com/G-Ivan-A/open-ai.ru/issues/42">G-Ivan-A/open-ai.ru#42</a><br>
+    <strong>Canonical source:</strong> <code>docs/product/2026-05-25-product-vision-options.md</code></p>
+  </div>
+
+  <h2>Vision Options</h2>
+  <table>
+    <tr><th>Option</th><th>Product statement</th><th>Primary audience</th><th>Main value</th><th>Risk</th></tr>
+    <tr><td>A. Governance-first AI SDLC portal</td><td>Demonstrates controlled AI-assisted development and governance.</td><td>Founders, product owners, AI-assisted delivery teams.</td><td>Trustworthy AI-assisted delivery process.</td><td>Too internal for the full catalog/workspace concept.</td></tr>
+    <tr><td>B. Open AI solutions catalog</td><td>Curated hub of commercially usable open-source AI agents and solutions.</td><td>SMBs, integrators, maintainers.</td><td>Faster discovery and safer adoption.</td><td>Needs strong license and security review.</td></tr>
+    <tr><td>C. Corporate project workspace</td><td>Role-based workspace for distributed teams and closed resources.</td><td>Corporate teams, contractors, partners.</td><td>Controlled collaboration beyond one corporate environment.</td><td>Heavy security and access-management scope.</td></tr>
+    <tr><td>D. Open education portal</td><td>Learning surface for AI agents, deployment, and business automation.</td><td>Learners, contributors, business teams.</td><td>Education and onboarding into the ecosystem.</td><td>Can conflict with production/education separation.</td></tr>
+    <tr><td>E. Phased Open AI Solutions Hub</td><td>Governance-led solution hub with workspaces and linked education.</td><td>SMBs, maintainers, integrators, corporate teams.</td><td>Combines trust, deployability, collaboration, and learning.</td><td>Requires strict sequencing.</td></tr>
+  </table>
+
+  <h2>Recommended Vision</h2>
+  <div class="recommendation">
+    <p>Choose option E: <code>open-ai.ru</code> is a governance-led Open AI Solutions Hub. It helps business teams discover, evaluate, and deploy commercially usable open-source AI agents and automation solutions. It gives maintainers a controlled way to publish solution metadata, deployment tiers, and limitations. It gives corporate and distributed teams role-based project workspaces for open or licensed private resources. Education is connected through approved metadata and sync, while course content lives outside the production repository.</p>
+  </div>
+
+  <h2>Positioning Boundaries</h2>
+  <table>
+    <tr><th>The product is</th><th>The product is not</th></tr>
+    <tr><td>A curated solution hub with reviewable metadata.</td><td>A generic AI news portal or content farm.</td></tr>
+    <tr><td>A deployment-readiness and governance layer.</td><td>A package registry that blindly mirrors every project.</td></tr>
+    <tr><td>A role-based workspace for controlled collaboration.</td><td>A social network with likes, expert ratings, or reputation scores.</td></tr>
+    <tr><td>A connector to education and onboarding materials.</td><td>A course-hosting repository.</td></tr>
+    <tr><td>A platform that can integrate open and licensed private resources.</td><td>A place to publish secrets, customer data, or unreviewed internal prompts.</td></tr>
+  </table>
+
+  <h2>MVP Shape</h2>
+  <ol>
+    <li>Product source of truth and approved license path.</li>
+    <li>Catalog contract and intake checklist.</li>
+    <li>One reference solution card, ideally Clarify Engine.</li>
+    <li>Runtime/app-shell ADR and minimal portal shell.</li>
+    <li>Auth/RBAC model accepted before account implementation.</li>
+    <li>Education metadata contract, without course hosting in this repository.</li>
+  </ol>
+</body>
+</html>
