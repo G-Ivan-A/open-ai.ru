@@ -26,6 +26,11 @@ Phase 0: Planning & Vision
 - Solution Concept (L3): [docs/solution-concept.md](docs/solution-concept.md)
 - ADR (L4): [docs/adr/](docs/adr/)
 
+## Governance
+
+- RFC: [governance/rfc/](governance/rfc/) — предложения к обсуждению.
+  - [Product Vision & Concept (2026-06)](governance/rfc/portal-vision-concept-proposal-2026-06.md)
+
 ## Hybrid Team Operating Model
 
 - Operating Model: [team/operating-model.md](team/operating-model.md)
