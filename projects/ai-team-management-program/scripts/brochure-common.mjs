@@ -1,5 +1,5 @@
 // Общие функции генерации и проверки brochure.pdf.
-// SSOT — content/*.md; порядок PDF и правило согласия кандидатов — здесь же,
+// SSOT — content/*.md; порядок PDF и правило согласия кандидатов (_data/team.yml) — здесь же,
 // чтобы скрипт генерации и проверка не расходились.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -39,29 +39,72 @@ export function arg(name, fallback) {
   return i > -1 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 }
 
-// _data/team.yml → [{ slot, name, consent }] (простой построчный разбор: файл
-// поддерживается вручную и имеет фиксированную структуру).
-export function candidates(teamYml = path.join(PROJECT, '_data', 'team.yml')) {
-  const text = readFileSync(teamYml, 'utf8');
-  const block = text.split(/^candidates:\s*$/m)[1]?.split(/^\S/m)[0] ?? '';
-  return block.split(/^  - /m).slice(1).map((item) => {
-    const get = (key) => item.match(new RegExp(`^\\s*${key}:\\s*"?(.*?)"?\\s*$`, 'm'))?.[1];
-    return { slot: get('slot'), name: get('name'), consent: get('consent') === 'true' };
-  });
+// Разбор YAML-подмножества _data/team.yml: словари, списки словарей, строки в
+// кавычках, true/false, комментарии «#» в начале строки. Внешних библиотек нет:
+// файл поддерживается вручную и имеет фиксированную структуру. Тот же разбор —
+// parse_yaml в tests/check_site.py.
+export function parseYaml(text) {
+  const lines = text.replace(/\r/g, '').split('\n')
+    .filter((l) => l.trim() !== '' && !l.trim().startsWith('#'));
+  const indent = (l) => l.length - l.trimStart().length;
+  const scalar = (v) => {
+    v = v.trim();
+    if (v === 'true' || v === 'false') return v === 'true';
+    const q = v.match(/^"(.*)"$/);
+    return q ? q[1].replace(/\\"/g, '"') : v;
+  };
+  let i = 0;
+  function node(ind) {
+    if (lines[i].trimStart().startsWith('- ')) {
+      const list = [];
+      while (i < lines.length && indent(lines[i]) === ind && lines[i].trimStart().startsWith('- ')) {
+        lines[i] = ' '.repeat(ind + 2) + lines[i].trimStart().slice(2);
+        list.push(node(ind + 2));
+      }
+      return list;
+    }
+    const map = {};
+    while (i < lines.length && indent(lines[i]) === ind && !lines[i].trimStart().startsWith('- ')) {
+      const m = lines[i].trim().match(/^([\w-]+):(?:\s+(.*))?$/);
+      if (!m) throw new Error(`team.yml: не разобрана строка «${lines[i]}»`);
+      i += 1;
+      if (m[2] !== undefined) map[m[1]] = scalar(m[2]);
+      else map[m[1]] = i < lines.length && indent(lines[i]) >= ind ? node(indent(lines[i])) : null;
+    }
+    return map;
+  }
+  return lines.length ? node(indent(lines[0])) : {};
 }
 
-// То же правило, что в _includes/consent.html: абзацы, которые не публикуются.
-export function consentFilter(markdown, cands = candidates()) {
-  const shown = cands.filter((c) => c.consent).length;
-  return markdown.split('\n\n').filter((p) => {
+export function team(teamYml = path.join(PROJECT, '_data', 'team.yml')) {
+  return parseYaml(readFileSync(teamYml, 'utf8'));
+}
+
+// Кандидаты из _data/team.yml: [{ role, slot, consent, name, company, fact, gra, sources }].
+export function candidates(teamYml) {
+  return team(teamYml).candidates ?? [];
+}
+
+// Строки раздела [4] по данным team.yml — то же правило, что в _includes/team.html.
+export const candidateLine = (c) => `${c.slot}: ${c.name} | ${c.company} | ${c.fact} | Метка GRA: ${c.gra}`;
+export const roleLine = (c, roles) => `${c.slot} | Требование: ${roles.find((r) => r.id === c.role)?.requirement}`;
+export const sourcesLine = (cands) => `**Источники:** ${cands
+  .map((c) => `${c.name} —${c.sources.map((s) => ` [${s.label}](${s.url})`).join(',')}`).join('; ')}.`;
+
+// То же правило, что в _includes/team.html: consent: false — строка роли с требованием
+// (ФИО, компания, факт и источники скрыты), consent: true — полная строка кандидата.
+export function teamFilter(markdown, data = team()) {
+  const cands = data.candidates ?? [];
+  const shown = cands.filter((c) => c.consent === true);
+  return markdown.split('\n\n').map((p) => {
+    let out = p;
     for (const c of cands) {
-      if (c.consent) continue;
-      if (p.startsWith(`${c.slot}: `)) return false;
-      if (p.startsWith('**Источники:**') && p.includes(c.name)) return false;
+      if (p.startsWith(`${c.slot}: `)) out = c.consent === true ? candidateLine(c) : roleLine(c, data.roles ?? []);
+      if (p.startsWith('**Источники:**') && p.includes(c.name)) out = shown.length ? sourcesLine(shown) : null;
     }
-    if (p.startsWith('**Метка GRA:**') && shown === 0) return false;
-    return true;
-  }).join('\n\n');
+    if (p.startsWith('**Метка GRA:**') && !shown.length) out = null;
+    return out;
+  }).filter((p) => p !== null).join('\n\n');
 }
 
 // Разделы H2, которые в PDF не выводятся (issue #63) — то же правило, что
@@ -88,7 +131,7 @@ export function skippedSections(rel) {
 
 export function readSource(rel) {
   const md = dropSections(readFileSync(path.join(PROJECT, rel), 'utf8'), PDF_SKIP[rel]);
-  return rel.endsWith('03-appendix.md') ? consentFilter(md) : md;
+  return rel.endsWith('03-appendix.md') ? teamFilter(md) : md;
 }
 
 // «а.ч.» без «к»: в текстах используется только «ак.ч.» (issue #63).

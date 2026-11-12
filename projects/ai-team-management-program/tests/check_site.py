@@ -245,35 +245,126 @@ def md_tables(markdown: str) -> int:
     return sum(1 for b in re.split(r"\n\s*\n", markdown) if b.lstrip("\n").startswith("|"))
 
 
-def candidates(team_yml: Path = PROJECT / "_data" / "team.yml") -> list[dict]:
-    text = team_yml.read_text(encoding="utf-8")
-    block = re.split(r"^candidates:\s*$", text, flags=re.M)[1]
-    block = re.split(r"^\S", block, flags=re.M)[0]
+TEAM_YML = PROJECT / "_data" / "team.yml"
+
+
+def parse_yaml(text: str):
+    """YAML-подмножество _data/team.yml: словари, списки словарей, строки в кавычках,
+    true/false, комментарии «#» в начале строки (стандартная библиотека не читает YAML).
+    Тот же разбор — parseYaml в scripts/brochure-common.mjs."""
+    lines = [l.rstrip() for l in text.replace("\r", "").split("\n") if l.strip() and not l.strip().startswith("#")]
+    pos = 0
+
+    def indent(line: str) -> int:
+        return len(line) - len(line.lstrip())
+
+    def scalar(v: str):
+        v = v.strip()
+        if v in ("true", "false"):
+            return v == "true"
+        q = re.fullmatch(r'"(.*)"', v)
+        return q.group(1).replace('\\"', '"') if q else v
+
+    def node(ind: int):
+        nonlocal pos
+        if lines[pos].lstrip().startswith("- "):
+            items = []
+            while pos < len(lines) and indent(lines[pos]) == ind and lines[pos].lstrip().startswith("- "):
+                lines[pos] = " " * (ind + 2) + lines[pos].lstrip()[2:]
+                items.append(node(ind + 2))
+            return items
+        mapping = {}
+        while pos < len(lines) and indent(lines[pos]) == ind and not lines[pos].lstrip().startswith("- "):
+            m = re.fullmatch(r"([\w-]+):(?:\s+(.*))?", lines[pos].strip())
+            if not m:
+                raise LookupError(f"team.yml: не разобрана строка «{lines[pos]}»")
+            pos += 1
+            if m.group(2) is not None:
+                mapping[m.group(1)] = scalar(m.group(2))
+            else:
+                mapping[m.group(1)] = node(indent(lines[pos])) if pos < len(lines) and indent(lines[pos]) >= ind else None
+        return mapping
+
+    return node(indent(lines[0])) if lines else {}
+
+
+def team(team_yml: Path = TEAM_YML) -> dict:
+    return parse_yaml(team_yml.read_text(encoding="utf-8"))
+
+
+def candidates(team_yml: Path = TEAM_YML) -> list[dict]:
+    return team(team_yml).get("candidates") or []
+
+
+def candidate_line(c: dict) -> str:
+    """Полная строка кандидата [4] (consent: true) — как в _includes/team.html."""
+    return f'{c["slot"]}: {c["name"]} | {c["company"]} | {c["fact"]} | Метка GRA: {c["gra"]}'
+
+
+def role_line(c: dict, roles: list[dict]) -> str:
+    """Строка роли без данных кандидата (consent: false): роль и требование к ней."""
+    role = next((r for r in roles if r.get("id") == c.get("role")), {})
+    return f'{c["slot"]} | Требование: {role.get("requirement")}'
+
+
+def sources_line(cands: list[dict]) -> str:
+    return "**Источники:** " + "; ".join(
+        f'{c["name"]} —' + ",".join(f' [{s["label"]}]({s["url"]})' for s in c["sources"]) for c in cands) + "."
+
+
+def team_filter(markdown: str, data: dict) -> str:
+    """То же правило, что _includes/team.html: consent: false — строка роли с требованием
+    (ФИО, компания, факт и источники скрыты), consent: true — полная строка кандидата."""
+    cands = data.get("candidates") or []
+    shown = [c for c in cands if c.get("consent") is True]
     out = []
-    for item in re.split(r"^  - ", block, flags=re.M)[1:]:
-        get = lambda k: (re.search(rf'^\s*{k}:\s*"?(.*?)"?\s*$', item, re.M) or [None, None])[1]  # noqa: E731
-        out.append({"slot": get("slot"), "name": get("name"), "consent": get("consent") == "true"})
-    return out
-
-
-def consent_filter(markdown: str, cands: list[dict]) -> str:
-    """То же правило, что _includes/consent.html: абзацы, которые не публикуются."""
-    shown = sum(1 for c in cands if c["consent"])
-    kept = []
     for p in markdown.split("\n\n"):
-        keep = True
+        line: str | None = p
         for c in cands:
-            if c["consent"]:
-                continue
             if p.startswith(f'{c["slot"]}: '):
-                keep = False
+                line = candidate_line(c) if c.get("consent") is True else role_line(c, data.get("roles") or [])
             if p.startswith("**Источники:**") and c["name"] in p:
-                keep = False
-        if p.startswith("**Метка GRA:**") and shown == 0:
-            keep = False
-        if keep:
-            kept.append(p)
-    return "\n\n".join(kept)
+                line = sources_line(shown) if shown else None
+        if p.startswith("**Метка GRA:**") and not shown:
+            line = None
+        if line is not None:
+            out.append(line)
+    return "\n\n".join(out)
+
+
+def check_team_data(data: dict, r: Report):
+    """_data/team.yml дословно совпадает с SSOT: роли — с таблицей «Команда» (01),
+    кандидаты и их источники — с разделом [4] (03). Изменить данные кандидата
+    можно только вместе с content/03-appendix.md (issue #65)."""
+    summary = (CONTENT / "01-project-summary.md").read_text(encoding="utf-8")
+    appendix = (CONTENT / "03-appendix.md").read_text(encoding="utf-8")
+    roles, cands = data.get("roles") or [], data.get("candidates") or []
+    table = summary.split("\n## Команда\n")[1].split("\n## ")[0]
+    rows = [[x.strip() for x in l.strip().strip("|").split("|")] for l in table.splitlines() if l.startswith("|")][2:]
+    r.check([[x.get("name"), x.get("task"), x.get("requirement")] for x in roles] == rows,
+            "_data/team.yml: roles (name, task, requirement) не совпадают с таблицей «Команда» в 01-project-summary.md")
+    section = appendix.split("\n## [4] ")[1].split("\n## ")[0]
+    paras = [" ".join(p.split()) for p in section.split("\n\n")]
+    for x in roles:
+        if x.get("note"):
+            r.check(f'**{x["note"]}**' in paras, f'_data/team.yml: note роли «{x["name"]}» не совпадает с [4] в 03-appendix.md')
+    ids = {x.get("id") for x in roles}
+    rows4 = [p for p in paras if re.match(r"^[^|:]+ \d+: .*\| Метка GRA: ", p)]
+    r.check(len(rows4) == len(cands), f"_data/team.yml: кандидатов {len(cands)}, а строк кандидатов в [4] — {len(rows4)}")
+    for c in cands:
+        slot = c.get("slot", "")
+        role = next((x for x in roles if x.get("id") == c.get("role")), None)
+        r.check(c.get("role") in ids and role is not None and slot.startswith(role["name"] + " "),
+                f"_data/team.yml: у кандидата «{slot}» неверная роль «{c.get('role')}»")
+        r.check(isinstance(c.get("consent"), bool), f"_data/team.yml: у кандидата «{slot}» consent должен быть true или false")
+        r.check(all(c.get(k) for k in ("name", "company", "fact", "gra", "sources")),
+                f"_data/team.yml: у кандидата «{slot}» нет name, company, fact, gra или sources")
+        if all(c.get(k) for k in ("name", "company", "fact", "gra")):
+            r.check(candidate_line(c) in paras, f"_data/team.yml: данные кандидата «{slot}» не совпадают со строкой [4] в 03-appendix.md")
+    src = next((p for p in paras if p.startswith("**Источники:**")), "")
+    if all(c.get("sources") for c in cands):
+        r.check(squash(sources_line(cands)) == squash(src),
+                "_data/team.yml: sources кандидатов не совпадают со строкой «Источники:» в [4] 03-appendix.md")
 
 
 def drop_sections(markdown: str, titles: list[str]) -> str:
@@ -282,10 +373,10 @@ def drop_sections(markdown: str, titles: list[str]) -> str:
     return "\n## ".join([parts[0]] + [p for p in parts[1:] if p.split("\n", 1)[0].strip() not in titles])
 
 
-def read_source(rel: str, cands: list[dict], web: bool = False) -> str:
+def read_source(rel: str, data: dict, web: bool = False) -> str:
     md = (PROJECT / rel).read_text(encoding="utf-8")
     if rel.endswith("03-appendix.md"):
-        md = consent_filter(md, cands)
+        md = team_filter(md, data)
     skip = WEB_SKIP if web else BROCHURE_SKIP
     if rel in skip:
         md = drop_sections(md, skip[rel])
@@ -352,13 +443,13 @@ class Report:
             self.errors.append(message)
 
 
-def check_verbatim(root: Node, sources: list[str], cands: list[dict], r: Report, where: str, web: bool,
+def check_verbatim(root: Node, sources: list[str], data: dict, r: Report, where: str, web: bool,
                    ui_text: set[str] | None = None):
     """Каждый блок текста — блок источника; каждый блок источника — на странице, в порядке файлов."""
     allowed = {"heading": set(), "p": set(), "li": set(), "td": set()}
     order: list[tuple[str, str, str]] = []
     for rel in sources:
-        for kind, text in md_blocks(read_source(rel, cands, web)):
+        for kind, text in md_blocks(read_source(rel, data, web)):
             group = "heading" if kind in HEADINGS else kind
             allowed[group].add(squash(text))
             order.append((rel, kind, text))
@@ -485,19 +576,19 @@ def check_links(name: str, doc: Node, r: Report):
                 f'{name}: внешняя ссылка {href} без target="_blank" rel="noopener noreferrer"')
 
 
-def check_web(doc: Node, site: Path, cands: list[dict], r: Report, title: str):
+def check_web(doc: Node, site: Path, data: dict, r: Report, title: str):
     ui = {title, PDF_LINK_TEXT, *(t for t, _ in NAV)}
     body = doc.find("body")
     if body is None:
         r.check(False, "нет <body>")
         return
-    check_verbatim(body, [rel for _, rel in WEB_SOURCES], cands, r, "index.html", web=True, ui_text=ui)
+    check_verbatim(body, [rel for _, rel in WEB_SOURCES], data, r, "index.html", web=True, ui_text=ui)
     hero = doc.find(id="top")
     for sid, rel in WEB_SOURCES:
         sec = doc.find(id=sid)
         if sec is None:
             continue
-        md = read_source(rel, cands, web=True)
+        md = read_source(rel, data, web=True)
         expected = md_headings(md)
         got = headings(sec)
         if sid == "summary":
@@ -519,7 +610,7 @@ def check_web(doc: Node, site: Path, cands: list[dict], r: Report, title: str):
                 f"index.html #{sid}: разделы H2 должны быть аккордеонами <details>/<summary>")
 
 
-def check_brochure(doc: Node, cands: list[dict], r: Report, title: str):
+def check_brochure(doc: Node, data: dict, r: Report, title: str):
     body = doc.find("body")
     arts = doc.find_all("article")
     got = [(a.attrs.get("id"), a.attrs.get("data-source")) for a in arts]
@@ -529,9 +620,9 @@ def check_brochure(doc: Node, cands: list[dict], r: Report, title: str):
     r.check(doc.find("form") is None and doc.find("script") is None, "brochure.html: без форм и скриптов")
     if body is None:
         return
-    check_verbatim(body, [rel for _, rel in BROCHURE_ORDER], cands, r, "brochure.html", web=False, ui_text={title})
+    check_verbatim(body, [rel for _, rel in BROCHURE_ORDER], data, r, "brochure.html", web=False, ui_text={title})
     for a, (aid, rel) in zip(arts, BROCHURE_ORDER):
-        md = read_source(rel, cands)
+        md = read_source(rel, data)
         r.check(headings(a) == md_headings(md), f"brochure.html #{aid}: заголовки H1–H6 не совпадают с {rel} (уровни и текст)")
         r.check(len(a.find_all("table")) == md_tables(md), f"brochure.html #{aid}: число таблиц не совпадает с {rel}")
         md_items = sum(1 for k, _ in md_blocks(md) if k == "li")
@@ -543,7 +634,7 @@ def check_brochure(doc: Node, cands: list[dict], r: Report, title: str):
                     f"brochure.html #{aid}: раздел «{skipped}» в PDF-брошюру не входит")
 
 
-def check_rules(name: str, source: str, doc: Node, cands: list[dict], r: Report, money: bool):
+def check_rules(name: str, source: str, doc: Node, data: dict, r: Report, money: bool):
     visible = re.sub(r"\s+", " ", doc.text())
     if money:
         for pattern, label in FORBIDDEN_MONEY:
@@ -556,9 +647,13 @@ def check_rules(name: str, source: str, doc: Node, cands: list[dict], r: Report,
     r.check(hit is None, f"{name}: сокращение «а.ч.» вместо «ак.ч.»: «…{visible[max(0, hit.start() - 40):hit.end() + 20]}…»"
             if hit else "")
     check_links(name, doc, r)
-    for c in cands:
-        if not c["consent"]:
-            r.check(c["name"] not in source, f"{name}: имя кандидата без согласия «{c['name']}» (consent: false)")
+    for c in data.get("candidates") or []:
+        if c.get("consent") is True:
+            continue
+        r.check(c["name"] not in source, f"{name}: имя кандидата без согласия «{c['name']}» (consent: false)")
+        r.check(squash(c["fact"]) not in squash(visible), f"{name}: факт кандидата без согласия «{c['slot']}» (consent: false)")
+        r.check(squash(role_line(c, data.get("roles") or [])) in squash(visible),
+                f"{name}: нет строки роли «{c['slot']}» с требованием — при consent: false роль скрывать нельзя")
 
 
 def check_site_files(site: Path, r: Report, require_pdf: bool):
@@ -578,8 +673,9 @@ def run(site: Path, require_pdf: bool = False) -> Report:
         if not f.is_file():
             raise FileNotFoundError(f"нет {f}: сначала соберите сайт")
     title = config_value("title")
-    cands = candidates()
-    summary = read_source("content/01-project-summary.md", cands, web=True)
+    data = team()
+    check_team_data(data, r)
+    summary = read_source("content/01-project-summary.md", data, web=True)
     r.check(bool(title) and squash(title) in squash(md_blocks(summary)[0][1]),
             "title в _config.yml должен быть частью H1 01-project-summary.md")
 
@@ -587,14 +683,14 @@ def run(site: Path, require_pdf: bool = False) -> Report:
     doc = parse_html(src)
     check_structure(doc, r, title)
     check_hero(doc, summary, site, r, require_pdf)
-    check_web(doc, site, cands, r, title)
+    check_web(doc, site, data, r, title)
     check_no_form(doc, r)
-    check_rules("index.html", src, doc, cands, r, money=True)
+    check_rules("index.html", src, doc, data, r, money=True)
 
     bsrc = brochure.read_text(encoding="utf-8")
     bdoc = parse_html(bsrc)
-    check_brochure(bdoc, cands, r, title)
-    check_rules("brochure.html", bsrc, bdoc, cands, r, money=False)
+    check_brochure(bdoc, data, r, title)
+    check_rules("brochure.html", bsrc, bdoc, data, r, money=False)
 
     check_site_files(site, r, require_pdf)
     return r
