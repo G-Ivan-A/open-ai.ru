@@ -162,6 +162,9 @@ class MarkdownHelpers(unittest.TestCase):
 
         first = econ.split("### Первый запуск (группа 25 человек)")[1].split("###")[0]
         repeat = econ.split("### 2-й и последующие запуски (группа 25 человек)")[1]
+        # Во второй колонке — себестоимость, выручка и маржа: заголовок не называет её «Себестоимостью».
+        for table in (first, repeat):
+            self.assertIn("| Статья | Значение (млн ₽; маржа — %) |", table)
         nre, opex = num(row(first, "NRE")), num(row(first, "OPEX — поток 25 участников"))
         self.assertAlmostEqual(num(row(first, "Итого себестоимость первого потока")), nre + opex)
         for table, cost in ((first, nre + opex), (repeat, opex)):
