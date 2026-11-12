@@ -1,8 +1,16 @@
-# Публикация сайта-презентации «ИИ в работе с командой» на GitHub Pages.
+# Публикация цифровой брошюры «ИИ в работе с командой» на GitHub Pages.
 # Источник сборки — корень репозитория (_config.yml берёт макеты и данные из
 # projects/ai-team-management-program), как и у штатной «pages build and deployment».
-# Публикация этим workflow — при Settings → Pages → Source: GitHub Actions; пока выбран
-# «Deploy from a branch», сайт публикует штатная сборка, а здесь только сборка и проверки.
+#
+# 1. Jekyll собирает index.html (веб-брошюра) и brochure.html (источник PDF) из content/*.md.
+# 2. Puppeteer открывает brochure.html и печатает A4 с полями 2 см в
+#    _site/projects/ai-team-management-program/brochure.pdf; check-pdf.mjs сверяет PDF
+#    с content/*.md (порядок 01 → 02 → 05 → 03, дословность, встроенные шрифты).
+# 3. Публикация:
+#    - Settings → Pages → Source: GitHub Actions — job deploy публикует _site вместе с PDF;
+#    - Deploy from a branch (legacy) — сайт публикует штатная сборка из main, поэтому
+#      job sync-pdf коммитит свежий brochure.pdf в main (если content/ изменился) и
+#      запускает сборку Pages.
 name: Pages — ИИ в работе с командой
 
 on:
@@ -17,23 +25,24 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
+env:
+  PROJECT: projects/ai-team-management-program
+  SITE: _site/projects/ai-team-management-program
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    outputs:
+      pdf_stale: ${{ steps.pdf.outputs.stale }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v6
 
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1
@@ -41,24 +50,60 @@ jobs:
           source: ./
           destination: ./_site
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ${{ env.PROJECT }}/package-lock.json
+
+      - name: Install PDF tools and Cyrillic fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-liberation fonts-dejavu-core
+          npm ci --prefix "$PROJECT"
+
+      - name: Generate brochure.pdf (A4, 2 cm margins)
+        run: |
+          # Контейнер jekyll-build-pages пишет _site от root.
+          sudo chown -R "$(id -u):$(id -g)" _site
+          npm run pdf --prefix "$PROJECT" -- --site "$GITHUB_WORKSPACE/$SITE"
+          ls -l "$SITE/brochure.pdf"
+
+      - name: Check brochure.pdf against content/ (SSOT)
+        run: npm run check:pdf --prefix "$PROJECT" -- --site "$GITHUB_WORKSPACE/$SITE"
+
       - name: Check site against content/ (SSOT)
-        env:
-          SITE: _site/projects/ai-team-management-program
         run: |
           # В корне публикации — только редирект и сайт программы, без материалов портала.
           extra="$(find _site -type f ! -path "$SITE/*" ! -path _site/index.html)"
           if [ -n "$extra" ]; then echo "::error title=Лишние файлы в публикации::$extra"; exit 1; fi
           grep -q 'url=projects/ai-team-management-program/' _site/index.html
-          python3 projects/ai-team-management-program/tests/check_contrast.py
-          SITE_DIR="$SITE" python3 -m unittest discover -s projects/ai-team-management-program/tests -p "test_*.py" -v
-          # budget_email заполняет владелец; пока он пуст, кнопка формы отключена,
+          python3 "$PROJECT/tests/check_contrast.py"
+          SITE_DIR="$SITE" python3 -m unittest discover -s "$PROJECT/tests" -p "test_*.py" -v
+          # budget_email заполняет владелец; пока он пуст, письмо открывается без адресата,
           # а сборка выдаёт предупреждение (публикацию не останавливает).
-          python3 projects/ai-team-management-program/tests/check_site.py --site "$SITE" --allow-missing-email
+          python3 "$PROJECT/tests/check_site.py" --site "$SITE" --require-pdf --allow-missing-email
           if grep -q 'data-email=""' "$SITE/index.html"; then
-            echo "::warning title=budget_email::Не указан budget_email в _config.yml (корень репозитория) — кнопка «Запросить детальный бюджет» отключена."
+            echo "::warning title=budget_email::Не указан budget_email в _config.yml (корень репозитория) — письмо из формы «Запросить бюджет» откроется без адресата."
           fi
 
-      - name: Upload artifact
+      - name: Compare with committed brochure.pdf
+        id: pdf
+        run: |
+          built="$(node "$PROJECT/scripts/pdf-hash.mjs" --site "$SITE")"
+          committed="$(node "$PROJECT/scripts/pdf-hash.mjs" --pdf "$PROJECT/brochure.pdf")"
+          echo "Сборка: ${built}; в репозитории: ${committed}"
+          if [ "$built" = "$committed" ]; then echo "stale=false" >> "$GITHUB_OUTPUT"; else echo "stale=true" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Upload brochure.pdf
+        uses: actions/upload-artifact@v7
+        with:
+          name: brochure-pdf
+          path: ${{ env.SITE }}/brochure.pdf
+          if-no-files-found: error
+
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
 
   # Источник Pages: «workflow» (GitHub Actions) или «legacy» (Deploy from a branch).
@@ -76,7 +121,7 @@ jobs:
           build_type="$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .build_type)"
           echo "build_type=${build_type}" >> "$GITHUB_OUTPUT"
           if [ "$build_type" != "workflow" ]; then
-            echo "::notice title=Pages source::Источник GitHub Pages — «${build_type}»: сайт публикует штатная «pages build and deployment» из того же _config.yml. Публикация этим workflow включится при Settings → Pages → Source: GitHub Actions."
+            echo "::notice title=Pages source::Источник GitHub Pages — «${build_type}»: сайт публикует штатная «pages build and deployment» из main, brochure.pdf берётся из репозитория (его обновляет job sync-pdf). Чтобы публиковать PDF прямо из этой сборки, выберите Settings → Pages → Source: GitHub Actions."
           fi
 
   deploy:
@@ -84,6 +129,9 @@ jobs:
     if: needs.source.outputs.build_type == 'workflow'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -91,3 +139,45 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  # Deploy from a branch: штатная сборка публикует brochure.pdf из main, поэтому
+  # свежий PDF коммитится в репозиторий, когда content/ (или вёрстка брошюры) изменились.
+  sync-pdf:
+    needs: [build, source]
+    if: >-
+      needs.source.outputs.build_type != 'workflow' &&
+      needs.build.outputs.pdf_stale == 'true' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download brochure.pdf
+        uses: actions/download-artifact@v8
+        with:
+          name: brochure-pdf
+          path: ${{ runner.temp }}/brochure
+
+      - name: Commit brochure.pdf
+        run: |
+          cp "$RUNNER_TEMP/brochure/brochure.pdf" "$PROJECT/brochure.pdf"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$PROJECT/brochure.pdf"
+          if git diff --cached --quiet; then echo "brochure.pdf не изменился"; exit 0; fi
+          git commit -m "chore(brochure): regenerate brochure.pdf from content/*.md"
+          git pull --rebase origin main
+          if ! git push origin HEAD:main; then
+            echo "::error title=brochure.pdf не опубликован::Не удалось записать brochure.pdf в main (защита ветки?). Разрешите github-actions[bot] push в main или выберите Settings → Pages → Source: GitHub Actions — тогда PDF публикуется из сборки без коммита."
+            exit 1
+          fi
+
+      - name: Rebuild GitHub Pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --jq .status
