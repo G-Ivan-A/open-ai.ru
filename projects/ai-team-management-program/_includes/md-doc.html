@@ -1,7 +1,8 @@
 {%- comment -%}
   Вывод одного файла content/*.md на веб-странице — дословно, без правки слов.
   Markdown → HTML делает kramdown (markdownify); шаблон меняет только уровень и
-  оформление заголовков и оборачивает таблицы для горизонтальной прокрутки.
+  оформление заголовков и оборачивает таблицы для горизонтальной прокрутки;
+  внешние ссылки открываются в новой вкладке (_includes/ext-links.html).
 
   Параметры:
     source   — Markdown файла (include_relative content/…md);
@@ -27,7 +28,8 @@
   <div class="container doc__inner">
     {%- if section == "section" %}
     <h2 class="doc__title" id="{{ include.id }}-title">{{ doc_title | escape }}</h2>
-    <div class="doc__intro">{{ doc_intro | markdownify }}</div>
+    {%- assign intro_html = doc_intro | markdownify %}
+    <div class="doc__intro">{% include ext-links.html html=intro_html %}</div>
     {%- endif %}
     {%- for part in parts offset: 1 -%}
       {%- assign part_lines = part | split: nl -%}
@@ -38,12 +40,13 @@
       {%- if section == "section" %}
     <details class="doc__part" id="{{ include.id }}-{{ forloop.index0 }}"{% if forloop.first %} open{% endif %}>
       <summary><h3 class="doc__part-title">{{ part_title | escape }}</h3></summary>
-      <div class="doc__body">{{ part_html }}</div>
+      <div class="doc__body">{% include ext-links.html html=part_html %}</div>
     </details>
       {%- else %}
     <div class="doc__part doc__part--flat" id="{{ include.id }}-{{ forloop.index0 }}">
       <h2 class="doc__part-title">{{ part_title | escape }}</h2>
-      <div class="doc__body">{{ part_body | markdownify | replace: "<table>", '<div class="table-wrap"><table>' | replace: "</table>", "</table></div>" }}</div>
+      {%- assign flat_html = part_body | markdownify | replace: "<table>", '<div class="table-wrap"><table>' | replace: "</table>", "</table></div>" %}
+      <div class="doc__body">{% include ext-links.html html=flat_html %}</div>
     </div>
       {%- endif -%}
     {%- endfor %}

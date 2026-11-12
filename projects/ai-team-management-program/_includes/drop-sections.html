@@ -1,0 +1,19 @@
+{%- comment -%}
+  Markdown файла content/*.md без указанных разделов H2 — для brochure.html.
+  Остальной текст возвращается дословно, в исходном порядке.
+  Параметры:
+    source — Markdown файла (include_relative content/…md);
+    skip   — заголовки H2, которые в PDF не выводятся, через «|».
+  То же правило — в scripts/brochure-common.mjs (PDF_SKIP) и tests/check_site.py
+  (BROCHURE_SKIP): проверки PDF и страницы сверяют текст с тем же набором разделов.
+{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign h2_split = nl | append: "## " -%}
+{%- assign skips = include.skip | default: "" | split: "|" -%}
+{%- assign parts = include.source | split: h2_split -%}
+{{- parts.first -}}
+{%- for part in parts offset: 1 -%}
+  {%- assign part_title = part | split: nl | first | strip -%}
+  {%- unless skips contains part_title -%}{{ h2_split }}{{ part }}{%- endunless -%}
+{%- endfor -%}
