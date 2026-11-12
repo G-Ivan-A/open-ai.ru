@@ -1,0 +1,32 @@
+{%- comment -%}
+  Фильтр согласия кандидатов для content/03-appendix.md, раздел [4].
+  Вход: include.source — Markdown файла. Выход — тот же Markdown без абзацев,
+  которые публиковать нельзя (_data/team.yml, candidates[].consent):
+  - абзац «<slot>: <ФИО> | …» кандидата с consent: false;
+  - абзац «**Источники:** …», где названо ФИО кандидата с consent: false;
+  - легенда «**Метка GRA:** …», если не опубликован ни один кандидат.
+  Остальные абзацы выводятся без изменений, слово в слово.
+{%- endcomment -%}
+{%- assign candidates = site.data.team.candidates -%}
+{%- assign shown = 0 -%}
+{%- for c in candidates -%}{%- if c.consent == true -%}{%- assign shown = shown | plus: 1 -%}{%- endif -%}{%- endfor -%}
+{%- assign paras = include.source | split: "
+
+" -%}
+{%- for p in paras -%}
+  {%- assign keep = true -%}
+  {%- for c in candidates -%}
+    {%- unless c.consent == true -%}
+      {%- assign prefix = c.slot | append: ": " -%}
+      {%- assign head = p | slice: 0, prefix.size -%}
+      {%- if head == prefix -%}{%- assign keep = false -%}{%- endif -%}
+      {%- assign head = p | slice: 0, 14 -%}
+      {%- if head == "**Источники:**" and p contains c.name -%}{%- assign keep = false -%}{%- endif -%}
+    {%- endunless -%}
+  {%- endfor -%}
+  {%- assign head = p | slice: 0, 14 -%}
+  {%- if head == "**Метка GRA:**" and shown == 0 -%}{%- assign keep = false -%}{%- endif -%}
+  {%- if keep %}
+{{ p }}
+{% endif -%}
+{%- endfor -%}

@@ -1,0 +1,18 @@
+{
+  "name": "ai-team-management-program-brochure",
+  "private": true,
+  "description": "brochure.html → brochure.pdf (A4, поля 2 см) и сверка PDF с content/*.md",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "pdf": "node scripts/build-pdf.mjs",
+    "check:pdf": "node scripts/check-pdf.mjs"
+  },
+  "devDependencies": {
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "6.5.438",
+    "puppeteer-core": "25.17.0"
+  }
+}

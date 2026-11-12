@@ -40,3 +40,6 @@ coverage/
 # Misc
 *.tsbuildinfo
 .playwright-mcp/
+
+# Local CI/debug artifacts
+ci-logs/

@@ -29,8 +29,8 @@ Phase 0: Planning & Vision
 ## Проекты
 
 - [projects/ai-team-management-program/](projects/ai-team-management-program/README.md) —
-  сайт-презентация корпоративной программы «ИИ в работе с командой»
-  (Jekyll, GitHub Pages).
+  цифровая брошюра корпоративной программы «ИИ в работе с командой»
+  (Jekyll, GitHub Pages) и её PDF-версия `brochure.pdf`.
 
 ## Governance
 
@@ -47,9 +47,10 @@ Phase 0: Planning & Vision
 
 - `.gitignore` — базовый Node.js/Next.js ignore-list.
 - `src/.gitkeep` — placeholder для будущего кода.
-- `.github/workflows/pages.yml` — публикация сайта
-  `projects/ai-team-management-program/` на GitHub Pages при push в `main`;
-  `.github/workflows/pages-check.yml` — его проверка в pull request.
+- `.github/workflows/pages.yml` — сборка брошюры
+  `projects/ai-team-management-program/`, генерация `brochure.pdf` (Puppeteer)
+  и публикация на GitHub Pages при push в `main`;
+  `.github/workflows/pages-check.yml` — те же сборка и проверки в pull request.
 - `_config.yml` и `index.html` в корне — сборка GitHub Pages: публикуется только
   сайт программы, корень <https://g-ivan-a.github.io/open-ai.ru/> временно
   перенаправляет на <https://g-ivan-a.github.io/open-ai.ru/projects/ai-team-management-program/>.

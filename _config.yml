@@ -1,4 +1,4 @@
-# Сайт-презентация программы «ИИ в работе с командой».
+# Цифровая брошюра программы «ИИ в работе с командой» (веб-страница и PDF).
 # Сборка идёт из корня репозитория — так же, как штатная «pages build and deployment»
 # (Settings → Pages → Deploy from a branch: main, /) и workflow .github/workflows/pages.yml.
 # Сам сайт лежит в projects/ai-team-management-program/: макеты, include-файлы и данные
@@ -6,19 +6,19 @@
 # перенаправляет на страницу программы. Материалы портала в публикацию не попадают.
 
 title: "«ИИ в работе с командой»"
-description: "11 недель от ручной рутины к собственным ИИ-агентам. Программа на 3 месяца для 20–25 руководителей."
+description: "«ИИ в работе с командой»: 11 недель от ручной рутины к собственным ИИ-агентам"
 lang: ru
 
 # github-pages по умолчанию подключает тему Primer (assets/css/style.css); отключаем.
 theme: null
 
-# Адрес получателя запросов детального бюджета (форма «Запросить детальный бюджет»).
-# Пока поле пустое, кнопка формы отключена, а проверка
-# projects/ai-team-management-program/tests/check_site.py выводит предупреждение.
+# Адрес получателя запросов бюджета (форма «Запросить бюджет»).
+# Пока поле пустое, письмо открывается без адресата, а сборка в workflow
+# выводит предупреждение.
 budget_email: ""
 
 # Тема письма с запросом бюджета.
-budget_subject: "Запрос детального бюджета: «ИИ в работе с командой»"
+budget_subject: "Запросить бюджет: «ИИ в работе с командой»"
 
 # Каталоги Jekyll проекта (пути — от корня репозитория).
 includes_dir: projects/ai-team-management-program/_includes
@@ -30,9 +30,9 @@ readme_index:
   enabled: false
 
 # В публикацию попадают только корневой index.html (редирект) и сайт программы:
-# страница, assets. content/ — копии исходных артефактов (SSOT) с экономикой,
-# которая на сайте не публикуется; материалы портала (docs/, team/ и т. д.) —
-# тоже вне сайта-презентации.
+# index.html, brochure.html, brochure.pdf, assets. content/ — исходные файлы (SSOT);
+# их текст выводится на страницы через include_relative, сами .md не публикуются.
+# Материалы портала (docs/, team/ и т. д.) — вне сайта.
 exclude:
   - "*.md"
   - LICENSE
@@ -53,3 +53,8 @@ exclude:
   - projects/ai-team-management-program/_includes/
   - projects/ai-team-management-program/_layouts/
   - projects/ai-team-management-program/_data/
+  - projects/ai-team-management-program/scripts/
+  - projects/ai-team-management-program/package.json
+  - projects/ai-team-management-program/package-lock.json
+  - projects/ai-team-management-program/node_modules/
+  - node_modules/

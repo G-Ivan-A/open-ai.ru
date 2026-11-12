@@ -1,5 +1,5 @@
-# Проверка сайта «ИИ в работе с командой» в pull request: сборка тем же
-# actions/jekyll-build-pages и сверка с content/*.md без публикации.
+# Проверка цифровой брошюры «ИИ в работе с командой» в pull request: сборка тем же
+# actions/jekyll-build-pages, генерация brochure.pdf и сверка с content/*.md без публикации.
 name: Pages check — ИИ в работе с командой
 
 on:
@@ -18,10 +18,14 @@ concurrency:
   group: pages-check-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PROJECT: projects/ai-team-management-program
+  SITE: _site/projects/ai-team-management-program
+
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -32,19 +36,52 @@ jobs:
           source: ./
           destination: ./_site
 
-      - name: Check site against content/ (SSOT)
-        env:
-          SITE: _site/projects/ai-team-management-program
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ${{ env.PROJECT }}/package-lock.json
+
+      - name: Install PDF tools and Cyrillic fonts
         run: |
-          # В корне публикации — только редирект и сайт программы, без материалов портала.
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-liberation fonts-dejavu-core
+          npm ci --prefix "$PROJECT"
+
+      - name: Generate brochure.pdf (A4, 2 cm margins)
+        run: |
+          sudo chown -R "$(id -u):$(id -g)" _site
+          npm run pdf --prefix "$PROJECT" -- --site "$GITHUB_WORKSPACE/$SITE"
+          ls -l "$SITE/brochure.pdf"
+
+      - name: Check brochure.pdf against content/ (SSOT)
+        run: npm run check:pdf --prefix "$PROJECT" -- --site "$GITHUB_WORKSPACE/$SITE"
+
+      - name: Check site against content/ (SSOT)
+        run: |
           extra="$(find _site -type f ! -path "$SITE/*" ! -path _site/index.html)"
           if [ -n "$extra" ]; then echo "::error title=Лишние файлы в публикации::$extra"; exit 1; fi
           grep -q 'url=projects/ai-team-management-program/' _site/index.html
-          python3 projects/ai-team-management-program/tests/check_contrast.py
-          SITE_DIR="$SITE" python3 -m unittest discover -s projects/ai-team-management-program/tests -p "test_*.py" -v
-          # budget_email заполняет владелец; пока он пуст, кнопка формы отключена,
-          # а сборка выдаёт предупреждение (публикацию не останавливает).
-          python3 projects/ai-team-management-program/tests/check_site.py --site "$SITE" --allow-missing-email
+          python3 "$PROJECT/tests/check_contrast.py"
+          SITE_DIR="$SITE" python3 -m unittest discover -s "$PROJECT/tests" -p "test_*.py" -v
+          python3 "$PROJECT/tests/check_site.py" --site "$SITE" --require-pdf --allow-missing-email
           if grep -q 'data-email=""' "$SITE/index.html"; then
-            echo "::warning title=budget_email::Не указан budget_email в _config.yml (корень репозитория) — кнопка «Запросить детальный бюджет» отключена."
+            echo "::warning title=budget_email::Не указан budget_email в _config.yml (корень репозитория) — письмо из формы «Запросить бюджет» откроется без адресата."
           fi
+
+      - name: Compare with committed brochure.pdf
+        run: |
+          built="$(node "$PROJECT/scripts/pdf-hash.mjs" --site "$SITE")"
+          committed="$(node "$PROJECT/scripts/pdf-hash.mjs" --pdf "$PROJECT/brochure.pdf")"
+          echo "Сборка: ${built}; в репозитории: ${committed}"
+          if [ "$built" != "$committed" ]; then
+            echo "::warning title=brochure.pdf устарел::brochure.pdf в репозитории не соответствует content/*.md. После слияния в main его обновит workflow «Pages» (job sync-pdf), либо выполните локально: cd $PROJECT && npm ci && npm run pdf -- --out brochure.pdf (после сборки Jekyll)."
+          fi
+
+      - name: Upload brochure.pdf
+        uses: actions/upload-artifact@v7
+        with:
+          name: brochure-pdf
+          path: ${{ env.SITE }}/brochure.pdf
+          if-no-files-found: error

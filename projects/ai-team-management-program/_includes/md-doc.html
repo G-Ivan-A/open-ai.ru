@@ -1,0 +1,51 @@
+{%- comment -%}
+  Вывод одного файла content/*.md на веб-странице — дословно, без правки слов.
+  Markdown → HTML делает kramdown (markdownify); шаблон меняет только уровень и
+  оформление заголовков и оборачивает таблицы для горизонтальной прокрутки.
+
+  Параметры:
+    source   — Markdown файла (include_relative content/…md);
+    id       — id раздела страницы;
+    heading  — "page": H1 и строка под ним выводятся в первом экране (hero.html),
+               здесь — только разделы H2 (как h2);
+               "section": H1 файла → h2 раздела, H2 → h3 в раскрывающемся блоке
+               (details), H3 → h4;
+    skip     — заголовки H2, которые на веб-странице не выводятся, через «|».
+{%- endcomment -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign h2_split = nl | append: "## " -%}
+{%- assign h3 = nl | append: "### " -%}
+{%- assign h4 = nl | append: "#### " -%}
+{%- assign skips = include.skip | default: "" | split: "|" -%}
+{%- assign parts = include.source | strip | split: h2_split -%}
+{%- assign head_lines = parts.first | split: nl -%}
+{%- assign doc_title = head_lines.first | remove_first: "# " | strip -%}
+{%- assign doc_intro = parts.first | remove_first: head_lines.first | strip -%}
+{%- assign section = include.heading | default: "section" -%}
+<section class="doc doc--{{ section }}" id="{{ include.id }}"{% if section == "section" %} aria-labelledby="{{ include.id }}-title"{% else %} aria-label="{{ include.label | escape }}"{% endif %}>
+  <div class="container doc__inner">
+    {%- if section == "section" %}
+    <h2 class="doc__title" id="{{ include.id }}-title">{{ doc_title | escape }}</h2>
+    <div class="doc__intro">{{ doc_intro | markdownify }}</div>
+    {%- endif %}
+    {%- for part in parts offset: 1 -%}
+      {%- assign part_lines = part | split: nl -%}
+      {%- assign part_title = part_lines.first | strip -%}
+      {%- if skips contains part_title -%}{%- continue -%}{%- endif -%}
+      {%- assign part_body = part | remove_first: part_lines.first -%}
+      {%- assign part_html = part_body | prepend: nl | replace: h3, h4 | markdownify | replace: "<table>", '<div class="table-wrap"><table>' | replace: "</table>", "</table></div>" -%}
+      {%- if section == "section" %}
+    <details class="doc__part" id="{{ include.id }}-{{ forloop.index0 }}"{% if forloop.first %} open{% endif %}>
+      <summary><h3 class="doc__part-title">{{ part_title | escape }}</h3></summary>
+      <div class="doc__body">{{ part_html }}</div>
+    </details>
+      {%- else %}
+    <div class="doc__part doc__part--flat" id="{{ include.id }}-{{ forloop.index0 }}">
+      <h2 class="doc__part-title">{{ part_title | escape }}</h2>
+      <div class="doc__body">{{ part_body | markdownify | replace: "<table>", '<div class="table-wrap"><table>' | replace: "</table>", "</table></div>" }}</div>
+    </div>
+      {%- endif -%}
+    {%- endfor %}
+  </div>
+</section>
