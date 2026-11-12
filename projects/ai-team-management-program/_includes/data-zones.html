@@ -1,0 +1,50 @@
+{%- comment -%}
+  Раздел 3. «Светофор данных».
+  SSOT: content/02-project-passport.md, «Уровень 2. Аналитический» → «Классификация данных».
+  Без JavaScript таблица показывает все зоны; assets/js/zones.js добавляет переключатель.
+{%- endcomment -%}
+{%- assign program = site.data.program -%}
+<section class="section section--tinted" id="zones" aria-labelledby="zones-title">
+  <div class="container">
+    <h2 class="section__title" id="zones-title">Светофор данных</h2>
+    <p class="section__lead">{{ program.zones_intro }}</p>
+
+    <div class="zones" data-zones>
+      <div class="zones__switch" role="group" aria-label="Выбор зоны данных" data-zones-switch hidden>
+        <div class="traffic-light">
+          {%- for z in program.zones %}
+          <button type="button" class="traffic-light__lamp traffic-light__lamp--{{ z.id }}" data-zone="{{ z.id }}" aria-pressed="false" aria-controls="zones-table">
+            <span class="traffic-light__bulb" aria-hidden="true"></span>
+            <span class="traffic-light__label">{{ z.name }} зона</span>
+          </button>
+          {%- endfor %}
+        </div>
+        <button type="button" class="button button--ghost-dark button--small" data-zone="all" aria-pressed="true" aria-controls="zones-table">Все зоны</button>
+      </div>
+
+      <p class="visually-hidden" role="status" data-zones-status></p>
+
+      <div class="table-wrap">
+        <table class="zones__table" id="zones-table">
+          <caption class="visually-hidden">Зоны данных и выбор модели в JustAI</caption>
+          <thead>
+            <tr>
+              <th scope="col">Зона</th>
+              <th scope="col">Данные</th>
+              <th scope="col">Выбор модели в JustAI</th>
+            </tr>
+          </thead>
+          <tbody>
+            {%- for z in program.zones %}
+            <tr class="zone-row zone-row--{{ z.id }}" data-zone-row="{{ z.id }}">
+              <th scope="row"><span class="zone-badge zone-badge--{{ z.id }}"><span class="zone-badge__dot" aria-hidden="true"></span>{{ z.name }}</span></th>
+              <td data-label="Данные">{{ z.data }}</td>
+              <td data-label="Выбор модели в JustAI">{{ z.model }}</td>
+            </tr>
+            {%- endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>

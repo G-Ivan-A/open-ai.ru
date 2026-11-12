@@ -1,0 +1,22 @@
+{%- comment -%}
+  Раздел 6. «Как мы измеряем результат».
+  SSOT: content/02-project-passport.md, «Уровень 5. Уровни оценки эффективности».
+{%- endcomment -%}
+<section class="section" id="evaluation" aria-labelledby="evaluation-title">
+  <div class="container">
+    <h2 class="section__title" id="evaluation-title">Как мы измеряем результат</h2>
+    <ol class="steps">
+      {%- for l in site.data.metrics.evaluation %}
+      <li class="step step--{{ forloop.index }}">
+        <h3 class="step__level">{{ l.level }}</h3>
+        <p class="step__target">{{ l.target }}</p>
+        <dl class="step__details">
+          <div><dt>Что измеряется</dt><dd>{{ l.measure }}</dd></div>
+          <div><dt>Инструмент</dt><dd>{{ l.tool }}</dd></div>
+          <div><dt>Когда</dt><dd>{{ l.when }}</dd></div>
+        </dl>
+      </li>
+      {%- endfor %}
+    </ol>
+  </div>
+</section>

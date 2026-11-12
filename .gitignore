@@ -9,6 +9,7 @@ dist/
 build/
 .next/
 out/
+_site/
 
 # Environment
 .env
@@ -38,3 +39,4 @@ coverage/
 
 # Misc
 *.tsbuildinfo
+.playwright-mcp/

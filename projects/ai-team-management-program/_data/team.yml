@@ -1,0 +1,75 @@
+# Команда программы.
+# roles — content/01-project-summary.md, «Команда» (роль, задача, требование дословно).
+# candidates — content/03-appendix.md, [4] «Кандидаты на роли».
+#
+# consent — письменное согласие кандидата на публикацию.
+#   false — на сайте показываются только роль и требования к ней; ФИО, компания,
+#           релевантный факт, метка GRA и ссылки на источники в HTML не попадают.
+#   true  — карточка показывает ФИО, компанию, релевантный факт, метку GRA и источники.
+# Поменять consent на true можно только после письменного согласия кандидата.
+
+roles:
+  - id: lead-expert
+    name: "Ведущий эксперт"
+    task: "Стратегия ИИ-трансформации, управление изменениями, защита"
+    requirement: "5+ лет в ИИ, опыт обучения руководителей"
+  - id: ai-architect
+    name: "ИИ-архитектор"
+    task: "Агенты, RAG, дашборды, штурм-сессии"
+    requirement: "Практика внедрений в JustAI, RAG-системы"
+  - id: curator
+    name: "Куратор"
+    task: "Ритм, напоминания, LMS, очные дни"
+    requirement: "Опыт blended learning; штатная роль Академии"
+    note: "Куратор — штатная роль Академии, внешний подбор кандидатов не требуется."
+
+candidates:
+  - role: lead-expert
+    slot: "Ведущий эксперт 1"
+    consent: false
+    name: "Викулин В."
+    company: "Т-Банк"
+    fact: "Автор и преподаватель программы ЦНО ФКН ВШЭ «Генеративный ИИ для руководителей» (18 а.ч.); 10 лет создаёт и внедряет ИИ-системы, руководит внедрением ИИ-агентов"
+    gra: "●"
+    sources:
+      - label: "НИУ ВШЭ"
+        url: "https://www.hse.ru/news/edu/1160150162.html"
+      - label: "vikulin.ai"
+        url: "https://vikulin.ai"
+  - role: lead-expert
+    slot: "Ведущий эксперт 2"
+    consent: false
+    name: "Соколов Е.А."
+    company: "НИУ ВШЭ"
+    fact: "Руководитель департамента больших данных и информационного поиска ФКН; автор и руководитель программы «ИИ-лидеры» для руководителей: 6 модулей по 3 дня"
+    gra: "●"
+    sources:
+      - label: "профиль НИУ ВШЭ"
+        url: "https://www.hse.ru/staff/esokolov"
+      - label: "программа «ИИ-лидеры»"
+        url: "https://www.hse.ru/news/priority/1109548984.html"
+  - role: ai-architect
+    slot: "ИИ-архитектор 1"
+    consent: false
+    name: "Мишнев Н."
+    company: "Just AI"
+    fact: "Руководит разработкой GenAI-решений умного поиска; создатель Jay Knowledge Hub на RAG; доклад на Conversations о подготовке данных для RAG"
+    gra: "●"
+    sources:
+      - label: "Хабр, Jay Knowledge Hub"
+        url: "https://habr.com/ru/post/920966"
+      - label: "Хабр, Just AI"
+        url: "https://habr.com/ru/companies/just_ai/news/911558"
+  - role: ai-architect
+    slot: "ИИ-архитектор 2"
+    consent: false
+    name: "Малышев А."
+    company: "Just AI"
+    fact: "Руководитель продукта JustAI Agent Platform: no-code агенты и мультиагентные сценарии"
+    gra: "◐"
+    sources:
+      - label: "Хабр, JustAI Agent Platform"
+        url: "https://habr.com/ru/articles/1020686"
+
+# content/03-appendix.md, [4] — легенда меток GRA (показывается, если опубликован хотя бы один кандидат).
+gra_legend: "● — роль и факт подтверждены первоисточником; ◐ — роль подтверждена, дата или объём участия требуют уточнения на интервью."

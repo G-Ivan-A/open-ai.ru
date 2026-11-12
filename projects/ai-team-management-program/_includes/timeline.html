@@ -1,0 +1,90 @@
+{%- comment -%}
+  Раздел 4. Интерактивный таймлайн, недели 0–11.
+  SSOT: content/02-project-passport.md, «Уровень 3. Содержательный» → «Модульная структура»;
+  названия блоков — content/01-project-summary.md, «Программа».
+  Без JavaScript все недели раскрыты; assets/js/timeline.js добавляет раскрытие по клику и фильтр «очно / онлайн».
+{%- endcomment -%}
+{%- assign weeks = site.data.timeline.weeks -%}
+{%- assign total_hours = 0 -%}{%- assign offline_count = 0 -%}
+{%- for w in weeks -%}
+  {%- assign total_hours = total_hours | plus: w.hours -%}
+  {%- if w.mode == 'offline' -%}{%- assign offline_count = offline_count | plus: 1 -%}{%- endif -%}
+{%- endfor -%}
+{%- assign last_week = weeks | last -%}
+<section class="section" id="timeline" aria-labelledby="timeline-title" data-timeline>
+  <div class="container">
+    <h2 class="section__title" id="timeline-title">Программа: {{ last_week.week }} недель, {{ offline_count }} очных блока, {{ total_hours }} а.ч.</h2>
+    <p class="section__lead">Недели 0–{{ last_week.week }} на одной оси. Очные недели — крупные узлы. Нажмите на неделю, чтобы увидеть темы, формат, а.ч., ведущего и результат.</p>
+
+    <div class="timeline__controls" data-timeline-controls hidden>
+      <div class="segmented" role="group" aria-label="Фильтр по формату">
+        <button type="button" class="segmented__button" data-filter="all" aria-pressed="true">Все недели</button>
+        <button type="button" class="segmented__button" data-filter="offline" aria-pressed="false">Очно</button>
+        <button type="button" class="segmented__button" data-filter="online" aria-pressed="false">Онлайн</button>
+      </div>
+      <button type="button" class="button button--ghost-dark button--small" data-expand-all aria-pressed="false">Раскрыть все недели</button>
+      <p class="timeline__status" role="status" data-timeline-status></p>
+    </div>
+
+    <ol class="rail" aria-label="Ось программы">
+      {%- assign current_block = '' -%}
+      {%- for w in weeks -%}
+        {%- if w.block != current_block -%}
+          {%- unless forloop.first %}</ol></li>{% endunless %}
+      <li class="rail__block{% if w.mode == 'offline' %} rail__block--offline{% endif %}">
+        <span class="rail__block-name">{{ w.block }}</span>
+        <ol class="rail__nodes">
+          {%- assign current_block = w.block -%}
+        {%- endif %}
+          <li><a class="rail__node rail__node--{{ w.mode }}" href="#week-{{ w.week }}" data-week-link="{{ w.week }}" data-mode="{{ w.mode }}" aria-label="Неделя {{ w.week }}: {{ w.format }}, {{ w.hours }} а.ч.">{{ w.week }}</a></li>
+        {%- if forloop.last %}
+        </ol>
+      </li>
+        {%- endif -%}
+      {%- endfor %}
+    </ol>
+
+    <ul class="legend" aria-label="Обозначения">
+      <li class="legend__item legend__item--offline">Очно, 2 дня · 16 а.ч.</li>
+      <li class="legend__item legend__item--online">Онлайн</li>
+    </ul>
+
+    <ol class="weeks" data-weeks>
+      {%- for w in weeks %}
+      <li class="week week--{{ w.mode }}" id="week-{{ w.week }}" data-week="{{ w.week }}" data-mode="{{ w.mode }}" data-hours="{{ w.hours }}">
+        <h3 class="week__heading">
+          <button type="button" class="week__toggle" aria-expanded="true" aria-controls="week-{{ w.week }}-body" data-week-toggle>
+            <span class="week__num">Неделя {{ w.week }}</span>
+            <span class="week__format" data-field="format">{{ w.format }}</span>
+            <span class="week__hours"><span data-field="hours">{{ w.hours }}</span> а.ч.</span>
+            <span class="week__block">{{ w.block }}</span>
+            <span class="week__chevron" aria-hidden="true"></span>
+          </button>
+        </h3>
+        <div class="week__body" id="week-{{ w.week }}-body">
+          <dl class="week__details">
+            <div class="week__row week__row--topics">
+              <dt>Темы и активности</dt>
+              <dd data-field="topics">{{ w.topics | escape | replace: 'День 1:', '<strong>День 1:</strong>' | replace: 'День 2:', '<br><strong>День 2:</strong>' }}</dd>
+            </div>
+            <div class="week__row">
+              <dt>Формат</dt>
+              <dd>{{ w.format }} · {{ w.hours }} а.ч.</dd>
+            </div>
+            <div class="week__row">
+              <dt>Ведёт</dt>
+              <dd data-field="lead">{{ w.lead | escape | replace: 'День 2:', '<br>День 2:' }}</dd>
+            </div>
+            <div class="week__row week__row--result">
+              <dt>Результат недели</dt>
+              <dd data-field="result">{{ w.result }}</dd>
+            </div>
+          </dl>
+        </div>
+      </li>
+      {%- endfor %}
+    </ol>
+
+    <p class="timeline__total" data-total-hours="{{ total_hours }}">{{ site.data.timeline.total_note }}</p>
+  </div>
+</section>

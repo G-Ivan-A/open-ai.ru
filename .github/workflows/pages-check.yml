@@ -1,0 +1,42 @@
+# Проверка сайта «ИИ в работе с командой» в pull request: сборка тем же
+# actions/jekyll-build-pages и сверка с content/*.md без публикации.
+name: Pages check — ИИ в работе с командой
+
+on:
+  pull_request:
+    paths:
+      - "projects/ai-team-management-program/**"
+      - ".github/workflows/pages.yml"
+      - ".github/workflows/pages-check.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./projects/ai-team-management-program
+          destination: ./_site
+
+      - name: Check site against content/ (SSOT)
+        run: |
+          python3 projects/ai-team-management-program/tests/check_contrast.py
+          SITE_DIR=_site python3 -m unittest discover -s projects/ai-team-management-program/tests -p "test_*.py" -v
+          # budget_email заполняет владелец; в pull request пустой адрес — предупреждение,
+          # на main (pages.yml) — ошибка публикации.
+          python3 projects/ai-team-management-program/tests/check_site.py --site _site --allow-missing-email
+          if grep -q 'data-email=""' _site/index.html; then
+            echo "::warning title=budget_email::Не указан budget_email в projects/ai-team-management-program/_config.yml — публикация на main остановится до его заполнения."
+          fi

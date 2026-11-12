@@ -26,6 +26,12 @@ Phase 0: Planning & Vision
 - Solution Concept (L3): [docs/solution-concept.md](docs/solution-concept.md)
 - ADR (L4): [docs/adr/](docs/adr/)
 
+## Проекты
+
+- [projects/ai-team-management-program/](projects/ai-team-management-program/README.md) —
+  сайт-презентация корпоративной программы «ИИ в работе с командой»
+  (Jekyll, GitHub Pages).
+
 ## Governance
 
 - RFC: [governance/rfc/](governance/rfc/) — предложения к обсуждению.
@@ -41,6 +47,9 @@ Phase 0: Planning & Vision
 
 - `.gitignore` — базовый Node.js/Next.js ignore-list.
 - `src/.gitkeep` — placeholder для будущего кода.
+- `.github/workflows/pages.yml` — публикация сайта
+  `projects/ai-team-management-program/` на GitHub Pages при push в `main`;
+  `.github/workflows/pages-check.yml` — его проверка в pull request.
 
 ---
 **Версия:** 0.1  
