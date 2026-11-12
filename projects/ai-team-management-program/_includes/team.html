@@ -1,58 +1,17 @@
 {%- comment -%}
-  Раздел [4] «Кандидаты на роли» (content/03-appendix.md) по данным _data/team.yml.
-  Вход: include.source — Markdown файла 03. Выход — тот же Markdown, где абзацы
-  кандидатов, строка «Источники:» кандидатов и легенда «Метка GRA» собраны из
-  _data/team.yml по правилу согласия (issue #57, #65; RFC 04: «до согласия
-  карточка показывает роль и требования»):
-  - consent: false — строка роли выводится всегда: «<slot> | Требование: <требование
-    роли>» (требование — дословно из таблицы «Команда» в 01-project-summary.md);
-    ФИО, компания, факт, метка GRA и ссылки на источники кандидата не выводятся.
-    Скрывать строку роли целиком запрещено;
-  - consent: true — полная строка кандидата «<slot>: <ФИО> | <компания> | <факт> |
-    Метка GRA: <метка>» (дословно как в [4]) и его ссылки в строке «Источники:»;
-  - строка «Источники:» выводится, если опубликован хотя бы один кандидат, и
-    содержит только опубликованных кандидатов;
-  - легенда «**Метка GRA:** …» выводится, если опубликован хотя бы один кандидат.
-  Знак «|» в строках кандидатов экранируется («\|»): иначе kramdown превращает
-  строку в таблицу; на странице выводится обычный «|».
-  Остальные абзацы 03 выводятся без изменений, слово в слово.
-  То же правило — teamFilter в scripts/brochure-common.mjs и team_filter в tests/check_site.py.
+  Раздел [4] «Кандидаты на роли» на веб-странице (issue #65, комментарий к PR #66):
+  на сайте вместо текста раздела выводится только «[4] Кандидаты на роли — смотри PDF»
+  (заголовок раздела и абзац «Смотри PDF.» со ссылкой на brochure.pdf).
+  Полный раздел [4] дословно, с гиперссылками на источники, — только в brochure.pdf.
+  Вход: include.source — Markdown файла 03-appendix.md; [4] — последний раздел файла.
+  Выход — тот же Markdown, где всё после заголовка «## [4] Кандидаты на роли»
+  заменено абзацем «Смотри [PDF](brochure.pdf).». То же правило — web_appendix в tests/check_site.py.
 {%- endcomment -%}
-{%- assign team = site.data.team -%}
-{%- assign shown = team.candidates | where: "consent", true -%}
-{%- capture sources -%}
-  {%- for c in shown -%}
-    {{ c.name }} —{% for s in c.sources %} [{{ s.label }}]({{ s.url }}){% unless forloop.last %},{% endunless %}{% endfor %}{% unless forloop.last %}; {% endunless %}
-  {%- endfor -%}
-{%- endcapture -%}
-{%- assign paras = include.source | split: "
-
+{%- assign marker = "
+## [4] Кандидаты на роли
 " -%}
-{%- for p in paras -%}
-  {%- assign out = p -%}
-  {%- for c in team.candidates -%}
-    {%- assign prefix = c.slot | append: ": " -%}
-    {%- assign head = p | slice: 0, prefix.size -%}
-    {%- if head == prefix -%}
-      {%- if c.consent == true -%}
-        {%- capture out %}{{ c.slot }}: {{ c.name }} \| {{ c.company }} \| {{ c.fact }} \| Метка GRA: {{ c.gra }}{% endcapture -%}
-      {%- else -%}
-        {%- assign role = team.roles | where: "id", c.role | first -%}
-        {%- capture out %}{{ c.slot }} \| Требование: {{ role.requirement }}{% endcapture -%}
-      {%- endif -%}
-    {%- endif -%}
-    {%- assign head = p | slice: 0, 14 -%}
-    {%- if head == "**Источники:**" and p contains c.name -%}
-      {%- if shown.size > 0 -%}
-        {%- capture out %}**Источники:** {{ sources }}.{% endcapture -%}
-      {%- else -%}
-        {%- assign out = "" -%}
-      {%- endif -%}
-    {%- endif -%}
-  {%- endfor -%}
-  {%- assign head = p | slice: 0, 14 -%}
-  {%- if head == "**Метка GRA:**" and shown.size == 0 -%}{%- assign out = "" -%}{%- endif -%}
-  {%- if out != "" %}
-{{ out }}
-{% endif -%}
-{%- endfor -%}
+{%- assign parts = include.source | split: marker -%}
+{{ parts[0] }}
+## [4] Кандидаты на роли
+
+Смотри [PDF](brochure.pdf).

@@ -80,31 +80,9 @@ export function team(teamYml = path.join(PROJECT, '_data', 'team.yml')) {
   return parseYaml(readFileSync(teamYml, 'utf8'));
 }
 
-// Кандидаты из _data/team.yml: [{ role, slot, consent, name, company, fact, gra, sources }].
+// Кандидаты из _data/team.yml: [{ role, slot, name, company, fact, gra, sources }].
 export function candidates(teamYml) {
   return team(teamYml).candidates ?? [];
-}
-
-// Строки раздела [4] по данным team.yml — то же правило, что в _includes/team.html.
-export const candidateLine = (c) => `${c.slot}: ${c.name} | ${c.company} | ${c.fact} | Метка GRA: ${c.gra}`;
-export const roleLine = (c, roles) => `${c.slot} | Требование: ${roles.find((r) => r.id === c.role)?.requirement}`;
-export const sourcesLine = (cands) => `**Источники:** ${cands
-  .map((c) => `${c.name} —${c.sources.map((s) => ` [${s.label}](${s.url})`).join(',')}`).join('; ')}.`;
-
-// То же правило, что в _includes/team.html: consent: false — строка роли с требованием
-// (ФИО, компания, факт и источники скрыты), consent: true — полная строка кандидата.
-export function teamFilter(markdown, data = team()) {
-  const cands = data.candidates ?? [];
-  const shown = cands.filter((c) => c.consent === true);
-  return markdown.split('\n\n').map((p) => {
-    let out = p;
-    for (const c of cands) {
-      if (p.startsWith(`${c.slot}: `)) out = c.consent === true ? candidateLine(c) : roleLine(c, data.roles ?? []);
-      if (p.startsWith('**Источники:**') && p.includes(c.name)) out = shown.length ? sourcesLine(shown) : null;
-    }
-    if (p.startsWith('**Метка GRA:**') && !shown.length) out = null;
-    return out;
-  }).filter((p) => p !== null).join('\n\n');
 }
 
 // Разделы H2, которые в PDF не выводятся (issue #63) — то же правило, что
@@ -130,8 +108,8 @@ export function skippedSections(rel) {
 }
 
 export function readSource(rel) {
-  const md = dropSections(readFileSync(path.join(PROJECT, rel), 'utf8'), PDF_SKIP[rel]);
-  return rel.endsWith('03-appendix.md') ? teamFilter(md) : md;
+  // Раздел [4] «Кандидаты на роли» в PDF — полностью, дословно, со ссылками (issue #65).
+  return dropSections(readFileSync(path.join(PROJECT, rel), 'utf8'), PDF_SKIP[rel]);
 }
 
 // «а.ч.» без «к»: в текстах используется только «ак.ч.» (issue #63).
