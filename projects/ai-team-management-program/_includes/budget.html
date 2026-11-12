@@ -1,0 +1,51 @@
+{%- comment -%}
+  Раздел 8. «Запросить детальный бюджет».
+  Адрес получателя — _config.yml, поле budget_email. Размер группы — строго 20–25
+  (content/02-project-passport.md, «Размер группы»).
+  Без JavaScript форма отправляется через mailto: (POST, text/plain);
+  assets/js/budget.js собирает тему и тело письма и проверяет поля.
+{%- endcomment -%}
+{%- assign email = site.budget_email | strip -%}
+<section class="section section--cta" id="budget" aria-labelledby="budget-title">
+  <div class="container budget">
+    <div class="budget__intro">
+      <h2 class="section__title" id="budget-title">Запросить детальный бюджет</h2>
+      <p class="section__lead">Программа для группы 20–25 человек. Заполните форму — письмо с запросом откроется в вашем почтовом клиенте.</p>
+      {%- if email != '' %}
+      <p class="budget__direct">Или напишите напрямую: <a href="mailto:{{ email }}?subject={{ site.budget_subject | uri_escape }}">{{ email }}</a></p>
+      {%- else %}
+      <p class="budget__notice" role="note" data-budget-missing>Адрес для запросов не указан: заполните поле <code>budget_email</code> в <code>_config.yml</code>.</p>
+      {%- endif %}
+    </div>
+
+    <form class="budget__form" action="mailto:{{ email }}?subject={{ site.budget_subject | uri_escape }}" method="post" enctype="text/plain" data-budget-form data-email="{{ email }}" data-subject="{{ site.budget_subject | escape }}" novalidate>
+      <div class="field">
+        <label for="budget-name">Имя</label>
+        <input id="budget-name" name="Имя" type="text" autocomplete="name" required>
+      </div>
+      <div class="field">
+        <label for="budget-company">Компания</label>
+        <input id="budget-company" name="Компания" type="text" autocomplete="organization" required>
+      </div>
+      <div class="field">
+        <label for="budget-position">Должность</label>
+        <input id="budget-position" name="Должность" type="text" autocomplete="organization-title" required>
+      </div>
+      <div class="field">
+        <label for="budget-email">E-mail</label>
+        <input id="budget-email" name="E-mail" type="email" autocomplete="email" inputmode="email" required>
+      </div>
+      <div class="field">
+        <label for="budget-group">Размер группы, человек</label>
+        <select id="budget-group" name="Размер группы" required aria-describedby="budget-group-hint">
+          {%- for n in (20..25) %}
+          <option value="{{ n }}">{{ n }}</option>
+          {%- endfor %}
+        </select>
+        <p class="field__hint" id="budget-group-hint">Группа: {{ site.data.program.group }}</p>
+      </div>
+      <p class="budget__error" role="alert" data-budget-error hidden></p>
+      <button type="submit" class="button button--accent"{% if email == '' %} disabled{% endif %}>Запросить детальный бюджет</button>
+    </form>
+  </div>
+</section>
