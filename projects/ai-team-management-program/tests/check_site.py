@@ -4,13 +4,17 @@
 Запуск (после сборки Jekyll):
 
     python3 tests/check_site.py --site ../../_site/projects/ai-team-management-program
-    python3 tests/check_site.py --site … --allow-missing-email   # пока не задан budget_email
-    python3 tests/check_site.py --site … --require-pdf           # brochure.pdf уже сгенерирован
+    python3 tests/check_site.py --site … --require-pdf   # brochure.pdf уже сгенерирован
 
 Правило дословности (issue #61): каждый заголовок, абзац, пункт списка и ячейка
 таблицы на странице совпадает с блоком content/*.md слово в слово (без учёта
 переносов строк), и каждый блок источника есть на странице. Собственный текст
 страницы — только служебные подписи интерфейса (UI_TEXT).
+
+Правила финальной версии (issue #63): на веб-странице нет форм — только кнопка
+«Скачать PDF-брошюру»; внешние ссылки открываются в новой вкладке
+(target="_blank" rel="noopener noreferrer"); сокращение — «ак.ч.», не «а.ч.»;
+раздел «Почему так» резюме в PDF-брошюру не входит (BROCHURE_SKIP).
 
 Только стандартная библиотека Python 3. Код возврата 0 — проверки пройдены,
 1 — найдены расхождения (список печатается), 2 — неверные аргументы или нет файлов.
@@ -20,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import html
-import os
 import re
 import sys
 from html.parser import HTMLParser
@@ -31,14 +34,17 @@ REPO = PROJECT.parent.parent
 CONTENT = PROJECT / "content"
 
 # Веб-страница: разделы и их источники в порядке страницы.
-SECTION_ORDER = ["top", "summary", "passport", "appendix", "budget"]
+SECTION_ORDER = ["top", "summary", "passport", "appendix"]
 WEB_SOURCES = [
     ("summary", "content/01-project-summary.md"),
     ("passport", "content/02-project-passport.md"),
     ("appendix", "content/03-appendix.md"),
 ]
-# Разделы H2, которые не публикуются на веб-странице (цены — только в PDF и по запросу).
+# Разделы H2, которые не публикуются на веб-странице (цены — только в PDF).
 WEB_SKIP = {"content/01-project-summary.md": ["Экономика"]}
+# Разделы H2, которые не входят в PDF-брошюру (issue #63) — то же правило, что
+# _includes/drop-sections.html в brochure.html и PDF_SKIP в scripts/brochure-common.mjs.
+BROCHURE_SKIP = {"content/01-project-summary.md": ["Почему так"]}
 
 # PDF-брошюра: строгий порядок 01 → 02 → 05 → 03.
 BROCHURE_ORDER = [
@@ -52,21 +58,17 @@ NAV = [
     ("Резюме проекта", "#summary"),
     ("Паспорт проекта", "#passport"),
     ("Приложение", "#appendix"),
-    ("Запросить бюджет", "#budget"),
 ]
-FORM_FIELDS = [("Имя", "text"), ("Компания", "text"), ("Должность", "text"), ("E-mail", "email"), ("Размер группы", "select")]
-GROUP_SIZES = [str(n) for n in range(20, 26)]
-BUDGET_TITLE = "Запросить бюджет"
 PDF_LINK_TEXT = "📥 Скачать PDF-брошюру программы"
 PDF_HREF = "brochure.pdf"
 
 PUBLISHED = {
     "index.html", "brochure.html", "brochure.pdf",
-    "assets/css/site.css", "assets/css/brochure.css", "assets/js/budget.js", "assets/favicon.svg",
+    "assets/css/site.css", "assets/css/brochure.css", "assets/favicon.svg",
 }
 
 # Цены, ставки и себестоимость на веб-странице не публикуются (RFC 04, правила контента);
-# они есть в PDF (content/05) и высылаются по запросу бюджета.
+# они есть только в PDF (content/01, раздел «Экономика», и content/05).
 FORBIDDEN_MONEY = [
     (r"₽", "знак рубля"),
     (r"\bруб(?:\.|лей|ля|ль)?\b", "рубли"),
@@ -90,7 +92,15 @@ FORBIDDEN_META = [
     (r"\bissue\s*#", "issue #"),
     (r"черновик", "черновик"),
     (r"lorem ipsum", "lorem ipsum"),
+    # Финальная версия для стейкхолдеров: без истории правок (issue #63).
+    (r"исправлен", "исправлено"),
+    (r"\bверси[яюи]\s*\d", "версия N"),
+    (r"\bбыло\b[^.]{0,80}\bстало\b", "было/стало"),
 ]
+
+# Сокращение академического часа — «ак.ч.»; «а.ч.» не используется (issue #63).
+OLD_HOURS = re.compile(r"(?<![А-Яа-яЁё])[аА]\.\s*ч\.")
+EXTERNAL_REL = {"noopener", "noreferrer"}
 
 CONTENT_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "th", "td"}
 HEADINGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
@@ -276,8 +286,9 @@ def read_source(rel: str, cands: list[dict], web: bool = False) -> str:
     md = (PROJECT / rel).read_text(encoding="utf-8")
     if rel.endswith("03-appendix.md"):
         md = consent_filter(md, cands)
-    if web and rel in WEB_SKIP:
-        md = drop_sections(md, WEB_SKIP[rel])
+    skip = WEB_SKIP if web else BROCHURE_SKIP
+    if rel in skip:
+        md = drop_sections(md, skip[rel])
     return md
 
 
@@ -289,11 +300,10 @@ def config_value(key: str) -> str:
 # ---------------------------------------------------------------- HTML -----
 
 def zone(node: Node) -> str:
-    """'ui' — служебный интерфейс (шапка, подвал, форма, кнопка PDF, заголовок формы), иначе 'content'."""
+    """'ui' — служебный интерфейс (шапка, подвал, кнопка PDF), иначе 'content'."""
     n: Node | None = node
     while n is not None:
-        if n.tag in ("header", "footer", "form", "title") or "data-pdf-link" in n.attrs \
-                or n.attrs.get("id") == "budget-title":
+        if n.tag in ("header", "footer", "title") or "data-pdf-link" in n.attrs:
             return "ui"
         n = n.parent
     return "content"
@@ -413,7 +423,7 @@ def check_structure(doc: Node, r: Report, title: str):
     for _, href in NAV:
         r.check(doc.find(id=href[1:]) is not None, f"пункт меню {href} ведёт на несуществующий раздел")
     scripts = [s.attrs.get("src") for s in doc.find_all("script")]
-    r.check(scripts == ["assets/js/budget.js"], f"на странице должен быть только assets/js/budget.js, найдено {scripts}")
+    r.check(scripts == [], f"на странице не должно быть скриптов, найдено {scripts}")
     for img in doc.find_all("img"):
         r.check(bool((img.attrs.get("alt") or "").strip()), f"у изображения {img.attrs.get('src')} нет alt")
     for n in doc.iter():
@@ -454,50 +464,29 @@ def check_hero(doc: Node, summary_md: str, site: Path, r: Report, require_pdf: b
         r.check(ok, f"ссылка на PDF ведёт на {pdf}, а файла нет или это не PDF")
 
 
-def check_budget(doc: Node, r: Report, allow_missing_email: bool):
-    section = doc.find(id="budget")
-    form = doc.find("form", data_budget_form=True)
-    if section is None or form is None:
-        r.check(False, "нет раздела #budget с формой data-budget-form")
-        return
-    title = section.find("h2")
-    r.check(title is not None and title.text().strip() == BUDGET_TITLE, f"заголовок формы должен быть «{BUDGET_TITLE}»")
-    r.check(nearest(form.parent, {"section"}) is section, "форма должна быть в разделе #budget")
-    r.check(len(doc.find_all("form")) == 1, "на странице должна быть одна форма")
-    controls = [n for n in form.iter() if n.tag in ("input", "select", "textarea")]
-    kinds = [n.attrs.get("type", "text") if n.tag == "input" else n.tag for n in controls]
-    r.check(kinds == [k for _, k in FORM_FIELDS],
-            f"поля формы {kinds}, ожидается ровно {[f'{l} ({k})' for l, k in FORM_FIELDS]}")
-    labels = form.find_all("label")
-    r.check([l.text().strip() for l in labels] == [l for l, _ in FORM_FIELDS],
-            f"подписи полей {[l.text().strip() for l in labels]}, ожидается {[l for l, _ in FORM_FIELDS]}")
-    for label, ctl in zip(labels, controls):
-        r.check(label.attrs.get("for") and label.attrs.get("for") == ctl.attrs.get("id"),
-                f"подпись «{label.text().strip()}» не связана со своим полем (for/id)")
-        r.check("required" in ctl.attrs, f"поле «{label.text().strip()}» должно быть обязательным (required)")
-    for n in doc.iter():
-        if n.tag == "input":
-            r.check(n.attrs.get("type") not in ("checkbox", "radio"), "на странице не должно быть флажков и переключателей")
-    selects = form.find_all("select")
-    opts = [(o.attrs.get("value"), o.text().strip()) for o in selects[0].find_all("option")] if selects else []
-    r.check(opts == [(v, v) for v in GROUP_SIZES], f"размер группы {opts}, ожидается выбор {GROUP_SIZES[0]}–{GROUP_SIZES[-1]}")
-    buttons = form.find_all("button")
-    r.check(len(buttons) == 1 and buttons[0].text().strip() == BUDGET_TITLE and buttons[0].attrs.get("type") == "submit",
-            f"в форме должна быть одна кнопка отправки «{BUDGET_TITLE}»")
-    r.check(all("disabled" not in b.attrs for b in buttons), "кнопка формы не должна быть отключена")
-    action = form.attrs.get("action") or ""
-    r.check(action.startswith("mailto:"), "форма отправляется только через mailto: (без внешних сервисов)")
-    email = (form.attrs.get("data-email") or "").strip()
-    if email:
-        r.check(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email) is not None, f"budget_email «{email}» не похож на e-mail")
-        r.check(action.startswith(f"mailto:{email}"), "адрес в action формы не совпадает с budget_email")
-    else:
-        r.check(allow_missing_email, "не указан адрес для запросов бюджета: заполните budget_email в _config.yml "
-                                     "(корень репозитория) и сделайте push в main")
+def check_no_form(doc: Node, r: Report):
+    """Формы «Запросить бюджет» нет: на странице только кнопка «Скачать PDF-брошюру» (issue #63)."""
+    r.check(doc.find("form") is None, "index.html: на странице не должно быть форм — только кнопка «Скачать PDF-брошюру»")
+    r.check(doc.find(id="budget") is None, "index.html: раздел #budget (форма «Запросить бюджет») удалён")
+    controls = [n.tag for n in doc.iter() if n.tag in ("input", "select", "textarea", "button")]
+    r.check(not controls, f"index.html: на странице не должно быть полей и кнопок формы, найдено {controls}")
+    r.check("mailto:" not in "".join(n.attrs.get("href") or n.attrs.get("action") or "" for n in doc.iter()),
+            "index.html: на странице не должно быть mailto:")
+
+
+def check_links(name: str, doc: Node, r: Report):
+    """Внешние ссылки — с target="_blank" rel="noopener noreferrer" (issue #63)."""
+    for a in doc.find_all("a"):
+        href = a.attrs.get("href") or ""
+        if not href.startswith(("http:", "https:", "//")):
+            continue
+        rel = set((a.attrs.get("rel") or "").split())
+        r.check(a.attrs.get("target") == "_blank" and EXTERNAL_REL <= rel,
+                f'{name}: внешняя ссылка {href} без target="_blank" rel="noopener noreferrer"')
 
 
 def check_web(doc: Node, site: Path, cands: list[dict], r: Report, title: str):
-    ui = {title, BUDGET_TITLE, PDF_LINK_TEXT, *(t for t, _ in NAV), *(l for l, _ in FORM_FIELDS), *GROUP_SIZES}
+    ui = {title, PDF_LINK_TEXT, *(t for t, _ in NAV)}
     body = doc.find("body")
     if body is None:
         r.check(False, "нет <body>")
@@ -549,6 +538,9 @@ def check_brochure(doc: Node, cands: list[dict], r: Report, title: str):
         r.check(len(a.find_all("li")) == md_items, f"brochure.html #{aid}: число пунктов списка не совпадает с {rel}")
         h1 = a.find_all("h1")
         r.check(len(h1) == 1 and a.find(None) is h1[0], f"brochure.html #{aid}: раздел должен начинаться со своего H1")
+        for skipped in BROCHURE_SKIP.get(rel, []):
+            r.check(all(squash(h.text()) != squash(skipped) for h in a.find_all("h2")),
+                    f"brochure.html #{aid}: раздел «{skipped}» в PDF-брошюру не входит")
 
 
 def check_rules(name: str, source: str, doc: Node, cands: list[dict], r: Report, money: bool):
@@ -560,6 +552,10 @@ def check_rules(name: str, source: str, doc: Node, cands: list[dict], r: Report,
                                  f"«…{visible[max(0, hit.start() - 40):hit.end() + 40]}…»" if hit else "")
     for pattern, label in FORBIDDEN_PORTAL + FORBIDDEN_META:
         r.check(re.search(pattern, source, re.I) is None, f"{name}: есть «{label}» — текст прежнего портала или служебное слово")
+    hit = OLD_HOURS.search(visible)
+    r.check(hit is None, f"{name}: сокращение «а.ч.» вместо «ак.ч.»: «…{visible[max(0, hit.start() - 40):hit.end() + 20]}…»"
+            if hit else "")
+    check_links(name, doc, r)
     for c in cands:
         if not c["consent"]:
             r.check(c["name"] not in source, f"{name}: имя кандидата без согласия «{c['name']}» (consent: false)")
@@ -574,7 +570,7 @@ def check_site_files(site: Path, r: Report, require_pdf: bool):
         r.check(False, f"в публикации нет {p}")
 
 
-def run(site: Path, allow_missing_email: bool = False, require_pdf: bool = False) -> Report:
+def run(site: Path, require_pdf: bool = False) -> Report:
     r = Report()
     index = site / "index.html"
     brochure = site / "brochure.html"
@@ -592,7 +588,7 @@ def run(site: Path, allow_missing_email: bool = False, require_pdf: bool = False
     check_structure(doc, r, title)
     check_hero(doc, summary, site, r, require_pdf)
     check_web(doc, site, cands, r, title)
-    check_budget(doc, r, allow_missing_email)
+    check_no_form(doc, r)
     check_rules("index.html", src, doc, cands, r, money=True)
 
     bsrc = brochure.read_text(encoding="utf-8")
@@ -608,12 +604,10 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--site", type=Path, default=REPO / "_site" / "projects" / "ai-team-management-program",
                     help="каталог собранного сайта программы")
-    ap.add_argument("--allow-missing-email", action="store_true",
-                    help="не считать ошибкой пустой budget_email (пока владелец не указал адрес)")
     ap.add_argument("--require-pdf", action="store_true", help="brochure.pdf должен быть в каталоге сборки")
     args = ap.parse_args(argv)
     try:
-        r = run(args.site, args.allow_missing_email, args.require_pdf)
+        r = run(args.site, args.require_pdf)
     except (FileNotFoundError, LookupError, IndexError) as e:
         print(f"ОШИБКА: {e}", file=sys.stderr)
         return 2
@@ -621,8 +615,6 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Проверка сайта: {len(r.errors)} расхождений (пройдено {r.passed}):", file=sys.stderr)
         for e in r.errors:
             print(f"  ✗ {e}", file=sys.stderr)
-            if "budget_email" in e and "GITHUB_ACTIONS" in os.environ:
-                print(f"::error title=Не указан адрес для запросов бюджета::{e}", file=sys.stderr)
         return 1
     print(f"Проверка сайта пройдена: {r.passed} проверок, текст совпадает с content/*.md слово в слово.")
     return 0

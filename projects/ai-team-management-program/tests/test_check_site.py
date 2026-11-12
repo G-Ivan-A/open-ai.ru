@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Регрессионные тесты проверки брошюры: собранная страница проходит проверку,
-а каждое намеренное нарушение требований issue #61 ловится.
+а каждое намеренное нарушение требований issues #61 и #63 ловится.
 
     SITE_DIR=../../_site/projects/ai-team-management-program python3 -m unittest tests/test_check_site.py -v
 
@@ -51,7 +51,76 @@ class MarkdownHelpers(unittest.TestCase):
     def test_web_page_skips_economics_only(self):
         md = check_site.read_source("content/01-project-summary.md", CANDS, web=True)
         self.assertNotIn("## Экономика", md)
+        self.assertIn("## Почему так", md)
         self.assertIn("## Команда", md)
+
+    def test_brochure_skips_why_section_only(self):
+        md = check_site.read_source("content/01-project-summary.md", CANDS)
+        self.assertNotIn("## Почему так", md)
+        self.assertIn("## Экономика", md)
+        self.assertIn("## Команда", md)
+
+    def test_old_hours_abbreviation_pattern(self):
+        self.assertIsNotNone(check_site.OLD_HOURS.search("91 а.ч. за 3 месяца"))
+        self.assertIsNotNone(check_site.OLD_HOURS.search("А.ч. всего"))
+        self.assertIsNone(check_site.OLD_HOURS.search("91 ак.ч. за 3 месяца; Ак.ч. всего"))
+
+    def test_sources_use_academic_hours(self):
+        for f in sorted(check_site.CONTENT.glob("*.md")):
+            text = f.read_text(encoding="utf-8")
+            self.assertIsNone(check_site.OLD_HOURS.search(text), f"{f.name}: «а.ч.» вместо «ак.ч.»")
+
+    def test_summary_economics_for_group_of_25(self):
+        md = (check_site.CONTENT / "01-project-summary.md").read_text(encoding="utf-8")
+        econ = md.split("## Экономика")[1].split("\n## ")[0]
+        self.assertIn("25 × 175 000 ₽ =\n4 375 000 ₽ (4,375 млн ₽)", econ)
+        num = lambda s: float(s.replace(" ", "").replace(",", ".").replace("−", "-"))  # noqa: E731
+
+        def row(table: str, title: str) -> str:
+            line = next(l for l in table.splitlines() if l.replace("**", "").startswith(f"| {title}"))
+            return line.replace("**", "").strip("|").split("|")[1].strip()
+
+        first = econ.split("### Первый запуск (группа 25 человек)")[1].split("###")[0]
+        repeat = econ.split("### 2-й и последующие запуски (группа 25 человек)")[1]
+        nre, opex = num(row(first, "NRE")), num(row(first, "OPEX — поток 25 участников"))
+        self.assertAlmostEqual(num(row(first, "Итого себестоимость первого потока")), nre + opex)
+        for table, cost in ((first, nre + opex), (repeat, opex)):
+            revenue = num(row(table, "Итого выручка (Цена для заказчика)"))
+            self.assertAlmostEqual(revenue, 25 * 175_000 / 1e6)
+            margin = num(row(table, "Итого маржинальность").rstrip("%"))
+            self.assertEqual(margin, round((revenue - cost) / revenue * 100, 1))
+        self.assertAlmostEqual(num(row(repeat, "Итого себестоимость повторного потока")), opex)
+        self.assertIn(f"повторный поток — {row(repeat, 'OPEX — поток 25 участников')} млн ₽.", econ)
+
+    def test_detailed_economics_totals(self):
+        md = (check_site.CONTENT / "05-detailed-economics.md").read_text(encoding="utf-8")
+        num = lambda s: int(s.replace("**", "").replace(" ", "").strip())  # noqa: E731
+
+        def section(title: str) -> list[list[str]]:
+            body = md.split(title)[1].split("\n## ")[0]
+            return [[c.strip() for c in l.strip("|").split("|")] for l in body.splitlines() if l.startswith("|")][2:]
+
+        def total(rows, label):
+            return num(next(r for r in rows if r[0].replace("**", "") == label)[-1])
+
+        nre_rows, opex_rows = section("## 1. NRE"), section("## 2. OPEX")
+        nre, opex = total(nre_rows, "Итого NRE"), total(opex_rows, "Итого OPEX потока")
+        items = [r for r in opex_rows if not r[0].startswith("**")]
+        fot = sum(num(r[-1]) for r in items[:6])
+        self.assertEqual(total(opex_rows, "ФОТ gross"), fot)
+        self.assertEqual(total(opex_rows, "ФОТ с взносами"), round(fot * 1.3))
+        self.assertEqual(opex, round(fot * 1.3) + sum(num(r[-1]) for r in items[6:]))
+        self.assertEqual((nre, opex), (2_410_000, 2_220_800))
+        cogs = section("## 3. Себестоимость")
+        self.assertEqual(total(cogs, "COGS первого потока"), nre + opex)
+        self.assertEqual(total(cogs, "COGS повторного потока"), opex)
+        price = section("## 4. Цена для заказчика")
+        self.assertEqual(total(price, "Поток 25 участников: 25 × 175 000 ₽"), 25 * 175_000)
+        margin = section("## 5. Маржинальность")
+        for r, cost in zip(margin, (nre + opex, opex)):
+            self.assertEqual((num(r[1]), num(r[2])), (cost, 4_375_000))
+            pct = float(r[4].replace("**", "").replace("%", "").replace(",", ".").replace("−", "-"))
+            self.assertEqual(pct, round((4_375_000 - cost) / 4_375_000 * 100, 1))
 
     def test_passport_has_12_weeks_and_91_hours(self):
         passport = (check_site.CONTENT / "02-project-passport.md").read_text(encoding="utf-8")
@@ -75,12 +144,12 @@ class BuiltSite(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp)
 
-    def errors(self, html: str | None = None, brochure: str | None = None, allow_missing_email: bool = True) -> list[str]:
+    def errors(self, html: str | None = None, brochure: str | None = None) -> list[str]:
         if html is not None:
             self.index.write_text(html, encoding="utf-8")
         if brochure is not None:
             self.brochure.write_text(brochure, encoding="utf-8")
-        return check_site.run(self.site, allow_missing_email).errors
+        return check_site.run(self.site).errors
 
     @staticmethod
     def sub(text: str, pattern: str, repl: str, count: int = 1) -> str:
@@ -91,8 +160,8 @@ class BuiltSite(unittest.TestCase):
     def mutate(self, pattern: str, repl: str, count: int = 1) -> str:
         return self.sub(self.html, pattern, repl, count)
 
-    def assertCaught(self, fragment: str, html: str | None = None, brochure: str | None = None, **kw):
-        errs = self.errors(html, brochure, **kw)
+    def assertCaught(self, fragment: str, html: str | None = None, brochure: str | None = None):
+        errs = self.errors(html, brochure)
         self.assertTrue(any(fragment in e for e in errs), f"ожидалась ошибка с «{fragment}», получено: {errs}")
 
     def test_built_site_passes(self):
@@ -117,7 +186,7 @@ class BuiltSite(unittest.TestCase):
     def test_reordered_sections_are_caught(self):
         passport = re.search(r'<section class="doc doc--section" id="passport".*?</section>', self.html, re.S).group(0)
         html = self.html.replace(passport, "")
-        html = html.replace('<section class="section section--budget"', passport + '\n<section class="section section--budget"')
+        html = html.replace("</main>", passport + "\n</main>")
         self.assertCaught("разделы страницы", html)
 
     def test_heading_level_is_checked(self):
@@ -137,35 +206,42 @@ class BuiltSite(unittest.TestCase):
 
     def test_pdf_link_target_must_exist_when_required(self):
         (self.site / "brochure.pdf").unlink(missing_ok=True)
-        errs = check_site.run(self.site, True, require_pdf=True).errors
+        errs = check_site.run(self.site, require_pdf=True).errors
         self.assertTrue(any("ссылка на PDF ведёт" in e for e in errs), errs)
 
     def test_hero_title_is_verbatim(self):
         self.assertCaught("заголовок первого экрана", self.mutate(r"(<h1[^>]*>)«ИИ", r"\1Программа «ИИ"))
 
-    # --- Форма «Запросить бюджет» ---
+    # --- Финальная версия для стейкхолдеров (issue #63) ---
 
-    def test_checkbox_is_caught(self):
-        self.assertCaught("флажков", self.mutate(r"(<button type=\"submit\")",
-                                                 r'<input type="checkbox" id="agree" required>\1'))
+    def test_budget_form_is_caught(self):
+        self.assertCaught("не должно быть форм",
+                          self.mutate(r"(</main>)", r'<section id="budget"><form action="mailto:"><input name="Имя">'
+                                                    r'<button type="submit">Запросить бюджет</button></form></section>\1'))
 
-    def test_extra_field_is_caught(self):
-        self.assertCaught("поля формы", self.mutate(r'(<div class="field">\s*<label for="budget-group">)',
-                                                    r'<div class="field"><label for="budget-phone">Имя</label>'
-                                                    r'<input id="budget-phone" type="tel" required></div>\1'))
+    def test_budget_script_is_caught(self):
+        self.assertCaught("не должно быть скриптов", self.mutate(r"(</head>)", r'<script src="assets/js/budget.js" defer></script>\1'))
 
-    def test_missing_field_is_caught(self):
-        self.assertCaught("поля формы", self.mutate(r'<div class="field">\s*<label for="budget-position">.*?</div>', ""))
+    def test_old_hours_on_web_page_is_caught(self):
+        self.assertCaught("«а.ч.»", self.mutate(r"ак\.ч\.", "а.ч."))
 
-    def test_group_size_options(self):
-        self.assertCaught("размер группы", self.mutate(r'<option value="25">25</option>',
-                                                       '<option value="25">25</option><option value="30">30</option>'))
+    def test_old_hours_in_brochure_is_caught(self):
+        self.assertCaught("«а.ч.»", brochure=self.sub(self.bhtml, r"ак\.ч\.", "а.ч."))
 
-    def test_disabled_button_is_caught(self):
-        self.assertCaught("отключена", self.mutate(r'<button type="submit" class="button"', '<button type="submit" class="button" disabled'))
+    def test_why_section_in_brochure_is_caught(self):
+        self.assertCaught("«Почему так»",
+                          brochure=self.sub(self.bhtml, r'(<h2 id="команда">)', r"<h2>Почему так</h2>\1"))
 
-    def test_empty_email_fails_without_flag(self):
-        self.assertCaught("budget_email", allow_missing_email=False)
+    def test_external_link_without_target_is_caught(self):
+        self.assertCaught('target="_blank"', self.mutate(r'<a target="_blank" rel="noopener noreferrer" href="http', '<a href="http'))
+
+    def test_external_link_without_noreferrer_is_caught(self):
+        self.assertCaught("noopener noreferrer",
+                          brochure=self.sub(self.bhtml, r'rel="noopener noreferrer"', 'rel="noopener"'))
+
+    def test_edit_history_is_caught(self):
+        self.assertCaught("исправлено", self.mutate(r"(</footer>)", r"<p>Исправлено: цена</p>\1"))
+        self.assertCaught("версия N", brochure=self.sub(self.bhtml, r"(</body>)", r"<p>Версия 2</p>\1"))
 
     # --- Регресс и правила контента ---
 
@@ -180,6 +256,7 @@ class BuiltSite(unittest.TestCase):
                                                              r"\1<p>Цена: 6,90 млн ₽</p>"))
 
     def test_old_portal_file_is_caught(self):
+        (self.site / "assets" / "js").mkdir(parents=True, exist_ok=True)
         (self.site / "assets" / "js" / "timeline.js").write_text("//", encoding="utf-8")
         self.assertCaught("лишний файл")
 
