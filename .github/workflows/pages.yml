@@ -110,6 +110,8 @@ jobs:
   source:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      pages: read
     outputs:
       build_type: ${{ steps.pages.outputs.build_type }}
     steps:
@@ -118,9 +120,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          build_type="$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .build_type)"
+          # Pages не включён — «none»: ни публикации, ни коммита PDF.
+          build_type="$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .build_type 2>/dev/null || echo none)"
           echo "build_type=${build_type}" >> "$GITHUB_OUTPUT"
-          if [ "$build_type" != "workflow" ]; then
+          if [ "$build_type" = "none" ]; then
+            echo "::notice title=Pages source::GitHub Pages в репозитории не включён: сборка и проверки выполнены, публикации нет."
+          elif [ "$build_type" != "workflow" ]; then
             echo "::notice title=Pages source::Источник GitHub Pages — «${build_type}»: сайт публикует штатная «pages build and deployment» из main, brochure.pdf берётся из репозитория (его обновляет job sync-pdf). Чтобы публиковать PDF прямо из этой сборки, выберите Settings → Pages → Source: GitHub Actions."
           fi
 
@@ -145,7 +150,7 @@ jobs:
   sync-pdf:
     needs: [build, source]
     if: >-
-      needs.source.outputs.build_type != 'workflow' &&
+      needs.source.outputs.build_type == 'legacy' &&
       needs.build.outputs.pdf_stale == 'true' &&
       github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
