@@ -417,7 +417,7 @@ def check_budget(doc: Node, r: Report, allow_missing_email: bool):
         r.check(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", address) is not None, f"budget_email «{address}» не похож на e-mail")
     elif not allow_missing_email:
         r.check(False, "budget_email в _config.yml не заполнен: укажите адрес получателя запросов детального бюджета "
-                       "(projects/ai-team-management-program/_config.yml, поле budget_email) и сделайте push в main")
+                       "(_config.yml в корне репозитория, поле budget_email) и сделайте push в main")
 
 
 def check_content_rules(source: str, doc: Node, r: Report):

@@ -1,0 +1,55 @@
+# Сайт-презентация программы «ИИ в работе с командой».
+# Сборка идёт из корня репозитория — так же, как штатная «pages build and deployment»
+# (Settings → Pages → Deploy from a branch: main, /) и workflow .github/workflows/pages.yml.
+# Сам сайт лежит в projects/ai-team-management-program/: макеты, include-файлы и данные
+# берутся оттуда (includes_dir, layouts_dir, data_dir ниже). Корневой index.html
+# перенаправляет на страницу программы. Материалы портала в публикацию не попадают.
+
+title: "«ИИ в работе с командой»"
+description: "11 недель от ручной рутины к собственным ИИ-агентам. Программа на 3 месяца для 20–25 руководителей."
+lang: ru
+
+# github-pages по умолчанию подключает тему Primer (assets/css/style.css); отключаем.
+theme: null
+
+# Адрес получателя запросов детального бюджета (форма «Запросить детальный бюджет»).
+# Пока поле пустое, кнопка формы отключена, а проверка
+# projects/ai-team-management-program/tests/check_site.py выводит предупреждение.
+budget_email: ""
+
+# Тема письма с запросом бюджета.
+budget_subject: "Запрос детального бюджета: «ИИ в работе с командой»"
+
+# Каталоги Jekyll проекта (пути — от корня репозитория).
+includes_dir: projects/ai-team-management-program/_includes
+layouts_dir: projects/ai-team-management-program/_layouts
+data_dir: projects/ai-team-management-program/_data
+
+# Отключаем плагины github-pages, которые превращают Markdown портала в страницы.
+readme_index:
+  enabled: false
+
+# В публикацию попадают только корневой index.html (редирект) и сайт программы:
+# страница, assets. content/ — копии исходных артефактов (SSOT) с экономикой,
+# которая на сайте не публикуется; материалы портала (docs/, team/ и т. д.) —
+# тоже вне сайта-презентации.
+exclude:
+  - "*.md"
+  - LICENSE
+  - docs/
+  - governance/
+  - team/
+  - src/
+  - ci-logs/
+  - experiments/
+  - examples/
+  - Gemfile
+  - Gemfile.lock
+  - vendor/
+  - projects/ai-team-management-program/README.md
+  - projects/ai-team-management-program/content/
+  - projects/ai-team-management-program/tests/
+  - projects/ai-team-management-program/docs/
+  - projects/ai-team-management-program/_includes/
+  - projects/ai-team-management-program/_layouts/
+  - projects/ai-team-management-program/_data/

@@ -13,10 +13,13 @@
 
 Как обновить контент: заменить файлы в `content/` и данные в `_data/` внутри этого каталога, затем сделать push в `main`.
 
-После push в `main` workflow `pages.yml` собирает сайт из этого каталога, сверяет
-страницу с `content/*.md` (`tests/check_site.py`) и публикует её. Если данные в
-`_data/` разошлись с `content/`, публикация останавливается со списком
-расхождений: исправьте `_data/` и повторите push.
+После push в `main` сайт собирается из корня репозитория (корневой `_config.yml`
+берёт макеты, разделы и данные из этого каталога) и публикуется по адресу
+<https://g-ivan-a.github.io/open-ai.ru/projects/ai-team-management-program/>;
+корневой `index.html` перенаправляет туда с <https://g-ivan-a.github.io/open-ai.ru/>.
+Workflow `pages.yml` сверяет страницу с `content/*.md` (`tests/check_site.py`). Если
+данные в `_data/` разошлись с `content/`, проверка падает со списком расхождений:
+исправьте `_data/` и повторите push.
 
 Правила переноса текстов в `_data/`:
 
@@ -32,7 +35,6 @@
 ```text
 projects/ai-team-management-program/
   README.md                 # навигация (не публикуется)
-  _config.yml               # настройки сайта, budget_email, исключения из сборки
   index.html                # страница: подключает 8 разделов по порядку
   _layouts/default.html     # каркас: шапка, навигация, подвал, подключение CSS/JS
   _includes/                # по одному файлу на раздел страницы
@@ -82,6 +84,11 @@ projects/ai-team-management-program/
   workflow только из `.github/workflows/` в корне репозитория. Оба workflow
   срабатывают только на изменения этого каталога (`paths`) и не затрагивают
   другие проекты портала.
+- `_config.yml` в корне — настройки сайта (`budget_email`, `includes_dir`,
+  `layouts_dir`, `data_dir`, исключения). Он в корне, потому что GitHub Pages
+  («Deploy from a branch: main, /») собирает репозиторий из корня и читает только
+  корневой `_config.yml`; материалы портала исключены из публикации.
+- `index.html` в корне — временный редирект на страницу программы.
 - `_site/` в корне — временный результат сборки, в git не попадает.
 
 ## Источники истины по разделам
@@ -95,7 +102,7 @@ projects/ai-team-management-program/
 | 5. Почему это работает | `metrics.yml` → `why`, `research`, `findings`, `stack` | 01: «Почему так»; 03: [1] и [3] |
 | 6. Как мы измеряем результат | `metrics.yml` → `evaluation` | 02: уровень 5 |
 | 7. Наша команда | `team.yml` | 01: «Команда»; 03: [4] |
-| 8. Запросить детальный бюджет | `_config.yml` → `budget_email` | 02: «Размер группы» |
+| 8. Запросить детальный бюджет | корневой `_config.yml` → `budget_email` | 02: «Размер группы» |
 
 Число академических часов в счётчике и заголовке таймлайна не хранится отдельно:
 шаблон суммирует `hours` недель из `_data/timeline.yml`, проверка сверяет сумму
@@ -117,16 +124,15 @@ projects/ai-team-management-program/
 
 ## Публикация: однократная настройка
 
-1. **Settings → Pages → Build and deployment → Source: GitHub Actions.**
-   Пока источник — «Deploy from a branch», шаг `Check Pages source` в job
-   `deploy` останавливает публикацию с сообщением, что нужно переключить.
-2. **Заполнить `budget_email` в `_config.yml`** — адрес, на который приходят
-   запросы детального бюджета. Пока поле пустое, форма показывает
-   предупреждение, а проверка на `main` останавливает публикацию с сообщением,
-   какое поле заполнить. В pull request пустой адрес — предупреждение.
+Обязательных шагов нет: сайт работает при обоих источниках Pages.
 
-GitHub Pages публикует один сайт на репозиторий: после переключения источника
-по адресу <https://g-ivan-a.github.io/open-ai.ru/> открывается этот сайт.
+- **Источник Pages.** При «Deploy from a branch» (текущая настройка) сайт
+  публикует штатная «pages build and deployment», а `pages.yml` только собирает
+  и проверяет. При «Source: GitHub Actions» публикует job `deploy` в `pages.yml`;
+  результат тот же, сборка из того же корневого `_config.yml`.
+- **`budget_email` в корневом `_config.yml`** — адрес, на который приходят
+  запросы детального бюджета. Пока поле пустое, кнопка формы отключена,
+  а проверки выдают предупреждение (публикацию не останавливают).
 
 ## Локальная сборка и проверки
 
@@ -134,7 +140,7 @@ GitHub Pages публикует один сайт на репозиторий: �
 
 ```sh
 docker run --rm -v "$PWD":/github/workspace -e GITHUB_WORKSPACE=/github/workspace \
-  -e INPUT_SOURCE=./projects/ai-team-management-program -e INPUT_DESTINATION=./_site \
+  -e INPUT_SOURCE=. -e INPUT_DESTINATION=./_site \
   -e GITHUB_REPOSITORY=G-Ivan-A/open-ai.ru -e INPUT_TOKEN="$(gh auth token)" \
   ghcr.io/actions/jekyll-build-pages:v1.0.13
 ```
@@ -143,8 +149,8 @@ docker run --rm -v "$PWD":/github/workspace -e GITHUB_WORKSPACE=/github/workspac
 
 ```sh
 python3 projects/ai-team-management-program/tests/check_contrast.py
-SITE_DIR=_site python3 -m unittest discover -s projects/ai-team-management-program/tests -p "test_*.py"
-python3 projects/ai-team-management-program/tests/check_site.py --site _site --allow-missing-email
+SITE_DIR=_site/projects/ai-team-management-program python3 -m unittest discover -s projects/ai-team-management-program/tests -p "test_*.py"
+python3 projects/ai-team-management-program/tests/check_site.py --site _site/projects/ai-team-management-program --allow-missing-email
 ```
 
 Флаг `--allow-missing-email` нужен только до заполнения `budget_email`.

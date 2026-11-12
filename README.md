@@ -50,6 +50,9 @@ Phase 0: Planning & Vision
 - `.github/workflows/pages.yml` — публикация сайта
   `projects/ai-team-management-program/` на GitHub Pages при push в `main`;
   `.github/workflows/pages-check.yml` — его проверка в pull request.
+- `_config.yml` и `index.html` в корне — сборка GitHub Pages: публикуется только
+  сайт программы, корень <https://g-ivan-a.github.io/open-ai.ru/> временно
+  перенаправляет на <https://g-ivan-a.github.io/open-ai.ru/projects/ai-team-management-program/>.
 
 ---
 **Версия:** 0.1  

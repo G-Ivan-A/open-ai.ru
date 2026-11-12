@@ -5,6 +5,8 @@ name: Pages check — ИИ в работе с командой
 on:
   pull_request:
     paths:
+      - "_config.yml"
+      - "index.html"
       - "projects/ai-team-management-program/**"
       - ".github/workflows/pages.yml"
       - ".github/workflows/pages-check.yml"
@@ -27,16 +29,22 @@ jobs:
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1
         with:
-          source: ./projects/ai-team-management-program
+          source: ./
           destination: ./_site
 
       - name: Check site against content/ (SSOT)
+        env:
+          SITE: _site/projects/ai-team-management-program
         run: |
+          # В корне публикации — только редирект и сайт программы, без материалов портала.
+          extra="$(find _site -type f ! -path "$SITE/*" ! -path _site/index.html)"
+          if [ -n "$extra" ]; then echo "::error title=Лишние файлы в публикации::$extra"; exit 1; fi
+          grep -q 'url=projects/ai-team-management-program/' _site/index.html
           python3 projects/ai-team-management-program/tests/check_contrast.py
-          SITE_DIR=_site python3 -m unittest discover -s projects/ai-team-management-program/tests -p "test_*.py" -v
-          # budget_email заполняет владелец; в pull request пустой адрес — предупреждение,
-          # на main (pages.yml) — ошибка публикации.
-          python3 projects/ai-team-management-program/tests/check_site.py --site _site --allow-missing-email
-          if grep -q 'data-email=""' _site/index.html; then
-            echo "::warning title=budget_email::Не указан budget_email в projects/ai-team-management-program/_config.yml — публикация на main остановится до его заполнения."
+          SITE_DIR="$SITE" python3 -m unittest discover -s projects/ai-team-management-program/tests -p "test_*.py" -v
+          # budget_email заполняет владелец; пока он пуст, кнопка формы отключена,
+          # а сборка выдаёт предупреждение (публикацию не останавливает).
+          python3 projects/ai-team-management-program/tests/check_site.py --site "$SITE" --allow-missing-email
+          if grep -q 'data-email=""' "$SITE/index.html"; then
+            echo "::warning title=budget_email::Не указан budget_email в _config.yml (корень репозитория) — кнопка «Запросить детальный бюджет» отключена."
           fi
