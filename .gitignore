@@ -9,6 +9,7 @@ dist/
 build/
 .next/
 out/
+_site/
 
 # Environment
 .env
