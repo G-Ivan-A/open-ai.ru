@@ -1,12 +1,16 @@
 # Публикация сайта-презентации «ИИ в работе с командой» на GitHub Pages.
-# Источник сборки — изолированный каталог проекта projects/ai-team-management-program.
-# Требуется однократная настройка: Settings → Pages → Build and deployment → Source: GitHub Actions.
+# Источник сборки — корень репозитория (_config.yml берёт макеты и данные из
+# projects/ai-team-management-program), как и у штатной «pages build and deployment».
+# Публикация этим workflow — при Settings → Pages → Source: GitHub Actions; пока выбран
+# «Deploy from a branch», сайт публикует штатная сборка, а здесь только сборка и проверки.
 name: Pages — ИИ в работе с командой
 
 on:
   push:
     branches: [main]
     paths:
+      - "_config.yml"
+      - "index.html"
       - "projects/ai-team-management-program/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
@@ -34,36 +38,56 @@ jobs:
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1
         with:
-          source: ./projects/ai-team-management-program
+          source: ./
           destination: ./_site
 
       - name: Check site against content/ (SSOT)
+        env:
+          SITE: _site/projects/ai-team-management-program
         run: |
+          # В корне публикации — только редирект и сайт программы, без материалов портала.
+          extra="$(find _site -type f ! -path "$SITE/*" ! -path _site/index.html)"
+          if [ -n "$extra" ]; then echo "::error title=Лишние файлы в публикации::$extra"; exit 1; fi
+          grep -q 'url=projects/ai-team-management-program/' _site/index.html
           python3 projects/ai-team-management-program/tests/check_contrast.py
-          SITE_DIR=_site python3 -m unittest discover -s projects/ai-team-management-program/tests -p "test_*.py" -v
-          python3 projects/ai-team-management-program/tests/check_site.py --site _site
+          SITE_DIR="$SITE" python3 -m unittest discover -s projects/ai-team-management-program/tests -p "test_*.py" -v
+          # budget_email заполняет владелец; пока он пуст, кнопка формы отключена,
+          # а сборка выдаёт предупреждение (публикацию не останавливает).
+          python3 projects/ai-team-management-program/tests/check_site.py --site "$SITE" --allow-missing-email
+          if grep -q 'data-email=""' "$SITE/index.html"; then
+            echo "::warning title=budget_email::Не указан budget_email в _config.yml (корень репозитория) — кнопка «Запросить детальный бюджет» отключена."
+          fi
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
 
+  # Источник Pages: «workflow» (GitHub Actions) или «legacy» (Deploy from a branch).
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      build_type: ${{ steps.pages.outputs.build_type }}
+    steps:
+      - name: Check Pages source
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          build_type="$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .build_type)"
+          echo "build_type=${build_type}" >> "$GITHUB_OUTPUT"
+          if [ "$build_type" != "workflow" ]; then
+            echo "::notice title=Pages source::Источник GitHub Pages — «${build_type}»: сайт публикует штатная «pages build and deployment» из того же _config.yml. Публикация этим workflow включится при Settings → Pages → Source: GitHub Actions."
+          fi
+
   deploy:
-    needs: build
+    needs: [build, source]
+    if: needs.source.outputs.build_type == 'workflow'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Check Pages source
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          build_type="$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .build_type)"
-          if [ "$build_type" != "workflow" ]; then
-            echo "::error title=Pages source::Источник GitHub Pages — «${build_type}». Включите Settings → Pages → Build and deployment → Source: GitHub Actions и перезапустите workflow."
-            exit 1
-          fi
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
