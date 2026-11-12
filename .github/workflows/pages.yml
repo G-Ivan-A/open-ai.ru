@@ -121,7 +121,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # Pages не включён — «none»: ни публикации, ни коммита PDF.
-          build_type="$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .build_type 2>/dev/null || echo none)"
+          # При 404 gh api печатает JSON ошибки в stdout, поэтому значение проверяется явно.
+          build_type="$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .build_type 2>/dev/null)" || build_type=none
+          case "$build_type" in workflow|legacy) ;; *) build_type=none ;; esac
           echo "build_type=${build_type}" >> "$GITHUB_OUTPUT"
           if [ "$build_type" = "none" ]; then
             echo "::notice title=Pages source::GitHub Pages в репозитории не включён: сборка и проверки выполнены, публикации нет."
