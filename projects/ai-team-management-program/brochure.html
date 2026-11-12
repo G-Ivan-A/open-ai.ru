@@ -1,0 +1,43 @@
+---
+layout: null
+---
+{%- comment -%}
+  Страница для печати: источник brochure.pdf (scripts/build-pdf.mjs, шаг workflow
+  .github/workflows/pages.yml). Только текст четырёх файлов SSOT в строгом порядке,
+  каждый с собственным заголовком 1 уровня:
+    1. content/01-project-summary.md   — Резюме проекта;
+    2. content/02-project-passport.md  — Паспорт проекта;
+    3. content/05-detailed-economics.md — Детализированная экономика;
+    4. content/03-appendix.md          — Приложение (кандидаты — по согласию, _data/team.yml).
+  Markdown → HTML: kramdown (markdownify); заголовки H1/H2/H3, списки и таблицы — как в .md.
+  Формат A4 и поля 2 см задаёт assets/css/brochure.css (@page) и скрипт генерации.
+{%- endcomment -%}
+{%- capture summary %}{% include_relative content/01-project-summary.md %}{% endcapture -%}
+{%- capture passport %}{% include_relative content/02-project-passport.md %}{% endcapture -%}
+{%- capture economics %}{% include_relative content/05-detailed-economics.md %}{% endcapture -%}
+{%- capture appendix %}{% include_relative content/03-appendix.md %}{% endcapture -%}
+{%- capture appendix %}{% include consent.html source=appendix %}{% endcapture -%}
+<!DOCTYPE html>
+<html lang="{{ site.lang | default: 'ru' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>{{ site.title }}</title>
+  <link rel="stylesheet" href="assets/css/brochure.css">
+</head>
+<body>
+  <article class="brochure-doc" id="doc-01" data-source="content/01-project-summary.md">
+{{ summary | markdownify }}
+  </article>
+  <article class="brochure-doc" id="doc-02" data-source="content/02-project-passport.md">
+{{ passport | markdownify }}
+  </article>
+  <article class="brochure-doc" id="doc-05" data-source="content/05-detailed-economics.md">
+{{ economics | markdownify }}
+  </article>
+  <article class="brochure-doc" id="doc-03" data-source="content/03-appendix.md">
+{{ appendix | markdownify }}
+  </article>
+</body>
+</html>

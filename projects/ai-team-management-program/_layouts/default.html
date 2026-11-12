@@ -3,49 +3,38 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ site.title }} — {{ site.data.program.headline }}</title>
+  <title>{{ site.title }}</title>
   <meta name="description" content="{{ site.description | escape }}">
   <meta property="og:title" content="{{ site.title | escape }}">
   <meta property="og:description" content="{{ site.description | escape }}">
   <meta property="og:type" content="website">
-  <meta name="theme-color" content="#0b1f3a">
+  <meta name="theme-color" content="#14233d">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/css/site.css">
-  <script src="assets/js/zones.js" defer></script>
-  <script src="assets/js/timeline.js" defer></script>
   <script src="assets/js/budget.js" defer></script>
 </head>
 <body>
-  <a class="skip-link" href="#main">Перейти к содержанию</a>
-
   <header class="site-header">
     <div class="container site-header__inner">
-      <a class="brand" href="#top" aria-label="{{ site.title }}: в начало страницы">
-        <img class="brand__mark" src="assets/favicon.svg" width="28" height="28" alt="">
-        <span class="brand__text">{{ site.title }}</span>
-      </a>
-      <nav class="site-nav" aria-label="Разделы">
+      <a class="brand" href="#top">{{ site.title }}</a>
+      <nav class="site-nav" aria-label="{{ site.title }}">
         <ul>
-          <li><a href="#outcomes">Результат</a></li>
-          <li><a href="#zones">Данные</a></li>
-          <li><a href="#timeline">Программа</a></li>
-          <li><a href="#evidence">Почему работает</a></li>
-          <li><a href="#evaluation">Оценка</a></li>
-          <li><a href="#team">Команда</a></li>
+          <li><a href="#summary">Резюме проекта</a></li>
+          <li><a href="#passport">Паспорт проекта</a></li>
+          <li><a href="#appendix">Приложение</a></li>
+          <li><a href="#budget">Запросить бюджет</a></li>
         </ul>
       </nav>
-      <a class="button button--small" href="#budget">Запросить бюджет</a>
     </div>
   </header>
 
-  <main id="main" tabindex="-1">
+  <main id="main">
     {{ content }}
   </main>
 
   <footer class="site-footer">
     <div class="container site-footer__inner">
-      <p><strong>{{ site.title }}</strong> · {{ site.data.program.tagline }}</p>
-      <p><a href="#budget">Запросить детальный бюджет</a> · <a href="#top">Наверх</a></p>
+      <p>{{ site.title }}</p>
     </div>
   </footer>
 </body>

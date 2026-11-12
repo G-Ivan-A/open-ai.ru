@@ -1,78 +1,36 @@
 /*
- * Форма «Запросить детальный бюджет».
- * Проверяет поля и открывает письмо через mailto: на адрес из _config.yml (budget_email)
- * с заполненными темой и телом. Без JavaScript форма отправляется через mailto: браузером.
- * Внешних сервисов и библиотек нет.
+ * Форма «Запросить бюджет».
+ * Открывает письмо через mailto: на адрес из _config.yml (budget_email) с темой
+ * budget_subject и телом «Поле: значение» по пяти полям формы. Незаполненные поля
+ * и неверный e-mail браузер отмечает сам (атрибуты required, type="email").
+ * Без JavaScript форма отправляется через mailto: браузером. Внешних сервисов нет.
  */
 (function () {
   'use strict';
 
-  var MIN_GROUP = 20;
-  var MAX_GROUP = 25;
+  var GROUP_SIZES = ['20', '21', '22', '23', '24', '25'];
 
   function init(form) {
     var email = (form.getAttribute('data-email') || '').trim();
     var subject = form.getAttribute('data-subject') || '';
-    var error = form.querySelector('[data-budget-error]');
-
-    function showError(message, field) {
-      if (error) {
-        error.textContent = message;
-        error.hidden = false;
-      }
-      if (field) {
-        field.setAttribute('aria-invalid', 'true');
-        field.focus();
-      }
-    }
-
-    function clearErrors() {
-      if (error) {
-        error.textContent = '';
-        error.hidden = true;
-      }
-      Array.prototype.forEach.call(form.querySelectorAll('[aria-invalid]'), function (f) {
-        f.removeAttribute('aria-invalid');
-      });
-    }
 
     form.addEventListener('submit', function (event) {
       event.preventDefault();
-      clearErrors();
-
-      if (!email) {
-        showError('Адрес для запросов не указан.');
+      if (typeof form.reportValidity === 'function' && !form.reportValidity()) {
         return;
       }
-
       var fields = Array.prototype.slice.call(form.querySelectorAll('input, select'));
-      for (var i = 0; i < fields.length; i++) {
-        var f = fields[i];
-        var label = form.querySelector('label[for="' + f.id + '"]');
-        var name = label ? label.textContent.trim() : f.name;
-        if (!f.value.trim()) {
-          showError('Заполните поле «' + name + '».', f);
-          return;
-        }
-        if (f.type === 'email' && !f.checkValidity()) {
-          showError('Проверьте e-mail.', f);
-          return;
-        }
-        if (f.tagName === 'SELECT') {
-          var size = parseInt(f.value, 10);
-          if (!(size >= MIN_GROUP && size <= MAX_GROUP)) {
-            showError('Размер группы — от ' + MIN_GROUP + ' до ' + MAX_GROUP + ' человек.', f);
-            return;
-          }
-        }
+      var group = form.querySelector('select');
+      if (group && GROUP_SIZES.indexOf(group.value) === -1) {
+        group.focus();
+        return;
       }
-
       var body = fields.map(function (f) {
         var label = form.querySelector('label[for="' + f.id + '"]');
         return (label ? label.textContent.trim() : f.name) + ': ' + f.value.trim();
       }).join('\r\n');
 
-      window.location.href = 'mailto:' + email +
+      window.location.href = 'mailto:' + encodeURI(email) +
         '?subject=' + encodeURIComponent(subject) +
         '&body=' + encodeURIComponent(body);
     });

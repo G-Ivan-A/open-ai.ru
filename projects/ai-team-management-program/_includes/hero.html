@@ -1,35 +1,25 @@
 {%- comment -%}
-  Раздел 1. Лендинг-хук.
-  SSOT: content/01-project-summary.md (заголовок, бизнес-цель), content/02-project-passport.md (а.ч., группа).
-  Счётчик а.ч. считается как сумма часов _data/timeline.yml.
+  Первый экран. Заголовок H1 и строка под ним — дословно из content/01-project-summary.md.
+  Кнопка — ссылка на brochure.pdf, который workflow .github/workflows/pages.yml
+  генерирует из brochure.html (content/01 → 02 → 05 → 03).
+  Ссылка относительная: страница лежит в /projects/ai-team-management-program/,
+  поэтому brochure.pdf открывается и на https://g-ivan-a.github.io/open-ai.ru/…,
+  и при локальной сборке.
+  Параметр: include.source — Markdown 01-project-summary.md.
 {%- endcomment -%}
-{%- assign program = site.data.program -%}
-{%- assign total_hours = 0 -%}
-{%- for w in site.data.timeline.weeks -%}{%- assign total_hours = total_hours | plus: w.hours -%}{%- endfor -%}
+{%- capture nl %}
+{% endcapture -%}
+{%- assign h2_split = nl | append: "## " -%}
+{%- assign head = include.source | split: h2_split | first -%}
+{%- assign head_lines = head | split: nl -%}
+{%- assign title = head_lines.first | remove_first: "# " | strip -%}
+{%- assign subtitle = head | remove_first: head_lines.first | strip -%}
 <section class="hero" id="top" aria-labelledby="hero-title">
   <div class="container hero__inner">
-    <p class="hero__eyebrow">{{ program.program_name }}</p>
-    <h1 class="hero__title" id="hero-title">{{ program.headline }}</h1>
-    <p class="hero__tagline">{{ program.tagline }} · группа {{ program.group | remove: '.' }}</p>
-
-    <div class="hero__goal">
-      <h2 class="hero__goal-label">Бизнес-цель</h2>
-      <p>{{ program.business_goal }}</p>
-    </div>
-
-    <ul class="counters" aria-label="Программа в цифрах">
-      {%- for c in site.data.metrics.counters %}
-      {%- if c.id == 'hours' -%}{%- assign value = total_hours -%}{%- else -%}{%- assign value = c.value -%}{%- endif %}
-      <li class="counter counter--{{ c.id }}" data-counter="{{ c.id }}">
-        <span class="counter__value">{{ value }}{% if c.unit != '' %}<span class="counter__unit">{% if c.unit != '%' %}&nbsp;{% endif %}{{ c.unit }}</span>{% endif %}</span>
-        <span class="counter__label">{{ c.label }}</span>
-      </li>
-      {%- endfor %}
-    </ul>
-
+    <h1 class="hero__title" id="hero-title">{{ title | escape }}</h1>
+    <div class="hero__subtitle">{{ subtitle | markdownify }}</div>
     <p class="hero__actions">
-      <a class="button button--accent" href="#budget">Запросить детальный бюджет</a>
-      <a class="button button--ghost" href="#timeline">Смотреть программу</a>
+      <a class="button button--pdf" href="brochure.pdf" download data-pdf-link>📥 Скачать PDF-брошюру программы</a>
     </p>
   </div>
 </section>

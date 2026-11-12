@@ -1,11 +1,20 @@
 ---
 layout: default
 ---
-{% include hero.html %}
-{% include outcomes.html %}
-{% include data-zones.html %}
-{% include timeline.html %}
-{% include evidence.html %}
-{% include evaluation.html %}
-{% include team.html %}
+{%- comment -%}
+  Цифровая брошюра программы. Все тексты — дословно из content/*.md (SSOT):
+  01-project-summary.md → первый экран и «Резюме проекта» (без раздела «Экономика»:
+  цены — по запросу из формы «Запросить бюджет» и в PDF-брошюре);
+  02-project-passport.md → «Паспорт проекта»; 03-appendix.md → «Приложение»
+  (кандидаты — по согласию, _data/team.yml). Полный текст 01 → 02 → 05 → 03 —
+  в brochure.html / brochure.pdf.
+{%- endcomment -%}
+{%- capture summary %}{% include_relative content/01-project-summary.md %}{% endcapture -%}
+{%- capture passport %}{% include_relative content/02-project-passport.md %}{% endcapture -%}
+{%- capture appendix %}{% include_relative content/03-appendix.md %}{% endcapture -%}
+{%- capture appendix %}{% include consent.html source=appendix %}{% endcapture -%}
+{% include hero.html source=summary %}
+{% include md-doc.html source=summary id="summary" heading="page" label="Резюме проекта" skip="Экономика" %}
+{% include md-doc.html source=passport id="passport" heading="section" %}
+{% include md-doc.html source=appendix id="appendix" heading="section" %}
 {% include budget.html %}
