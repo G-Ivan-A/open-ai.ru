@@ -18,7 +18,7 @@
 {%- assign h3 = nl | append: "### " -%}
 {%- assign h4 = nl | append: "#### " -%}
 {%- assign skips = include.skip | default: "" | split: "|" -%}
-{%- assign parts = include.source | split: h2_split -%}
+{%- assign parts = include.source | strip | split: h2_split -%}
 {%- assign head_lines = parts.first | split: nl -%}
 {%- assign doc_title = head_lines.first | remove_first: "# " | strip -%}
 {%- assign doc_intro = parts.first | remove_first: head_lines.first | strip -%}

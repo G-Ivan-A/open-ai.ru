@@ -18,13 +18,42 @@ import { existsSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import puppeteer from 'puppeteer-core';
-import { PDFDocument } from 'pdf-lib';
-import { DEFAULT_SITE, HASH_PREFIX, arg, sourceHash } from './brochure-common.mjs';
+import { PDFDict, PDFDocument, PDFHexString, PDFName } from 'pdf-lib';
+import {
+  DEFAULT_SITE, HASH_PREFIX, ORDER, arg, mdBlocks, readSource, sourceHash, squash,
+} from './brochure-common.mjs';
 
 // Основной шрифт текста (кириллица) и допустимые запасные — для отдельных символов
 // (●, ◐, →, ≥, δ), которых нет в основном шрифте.
 const BODY_FONTS = /^(Liberation Sans|DejaVu Sans|Arial)$/;
 const FALLBACK_FONTS = /^(Liberation Sans|DejaVu Sans|Arial|FreeSans|Noto Sans|Noto Sans Symbols2?)$/;
+
+// Chrome берёт название закладки из свёрстанных строк заголовка и теряет пробел
+// в месте переноса («ручнойрутины»). Восстанавливаем название из заголовка .md.
+function fixOutlineTitles(doc) {
+  const headings = new Map();
+  for (const rel of ORDER) {
+    for (const b of mdBlocks(readSource(rel))) {
+      if (/^h\d$/.test(b.kind)) headings.set(squash(b.text), b.text);
+    }
+  }
+  const get = (dict, key) => doc.context.lookup(dict.get(PDFName.of(key)));
+  let fixed = 0;
+  const walk = (item) => {
+    for (; item instanceof PDFDict; item = get(item, 'Next')) {
+      const title = item.get(PDFName.of('Title'))?.decodeText?.();
+      const source = title && headings.get(squash(title));
+      if (source && source !== title) {
+        item.set(PDFName.of('Title'), PDFHexString.fromText(source));
+        fixed += 1;
+      }
+      walk(get(item, 'First'));
+    }
+  };
+  const outlines = doc.catalog.lookup(PDFName.of('Outlines'));
+  if (outlines instanceof PDFDict) walk(get(outlines, 'First'));
+  return fixed;
+}
 
 function chromePath() {
   if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
@@ -86,6 +115,8 @@ try {
   });
 
   const doc = await PDFDocument.load(pdf, { updateMetadata: false });
+  const fixed = fixOutlineTitles(doc);
+  console.log(`Закладки: ${fixed} заголовков приведены к тексту content/*.md`);
   const hash = sourceHash(site);
   doc.setKeywords([`${HASH_PREFIX}${hash}`]);
   doc.setLanguage('ru');

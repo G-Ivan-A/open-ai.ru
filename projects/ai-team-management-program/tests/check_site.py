@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Проверка собранного сайта против источников истины (content/*.md).
+"""Проверка собранной цифровой брошюры против источников истины (content/*.md).
 
 Запуск (после сборки Jekyll):
 
-    python3 tests/check_site.py --site ../../_site
-    python3 tests/check_site.py --site ../../_site --allow-missing-email   # локально / в PR
+    python3 tests/check_site.py --site ../../_site/projects/ai-team-management-program
+    python3 tests/check_site.py --site … --allow-missing-email   # пока не задан budget_email
+    python3 tests/check_site.py --site … --require-pdf           # brochure.pdf уже сгенерирован
+
+Правило дословности (issue #61): каждый заголовок, абзац, пункт списка и ячейка
+таблицы на странице совпадает с блоком content/*.md слово в слово (без учёта
+переносов строк), и каждый блок источника есть на странице. Собственный текст
+страницы — только служебные подписи интерфейса (UI_TEXT).
 
 Только стандартная библиотека Python 3. Код возврата 0 — проверки пройдены,
 1 — найдены расхождения (список печатается), 2 — неверные аргументы или нет файлов.
@@ -14,49 +20,82 @@ from __future__ import annotations
 
 import argparse
 import html
+import os
 import re
 import sys
 from html.parser import HTMLParser
 from pathlib import Path
 
 PROJECT = Path(__file__).resolve().parent.parent
+REPO = PROJECT.parent.parent
 CONTENT = PROJECT / "content"
 
-SECTION_ORDER = ["top", "outcomes", "zones", "timeline", "evidence", "evaluation", "team", "budget"]
-OFFLINE_WEEKS = {1, 6, 11}
-FORM_FIELDS = ["Имя", "Компания", "Должность", "E-mail", "Размер группы"]
+# Веб-страница: разделы и их источники в порядке страницы.
+SECTION_ORDER = ["top", "summary", "passport", "appendix", "budget"]
+WEB_SOURCES = [
+    ("summary", "content/01-project-summary.md"),
+    ("passport", "content/02-project-passport.md"),
+    ("appendix", "content/03-appendix.md"),
+]
+# Разделы H2, которые не публикуются на веб-странице (цены — только в PDF и по запросу).
+WEB_SKIP = {"content/01-project-summary.md": ["Экономика"]}
 
-# Экономика и коммерческие условия на сайте не публикуются.
+# PDF-брошюра: строгий порядок 01 → 02 → 05 → 03.
+BROCHURE_ORDER = [
+    ("doc-01", "content/01-project-summary.md"),
+    ("doc-02", "content/02-project-passport.md"),
+    ("doc-05", "content/05-detailed-economics.md"),
+    ("doc-03", "content/03-appendix.md"),
+]
+
+NAV = [
+    ("Резюме проекта", "#summary"),
+    ("Паспорт проекта", "#passport"),
+    ("Приложение", "#appendix"),
+    ("Запросить бюджет", "#budget"),
+]
+FORM_FIELDS = [("Имя", "text"), ("Компания", "text"), ("Должность", "text"), ("E-mail", "email"), ("Размер группы", "select")]
+GROUP_SIZES = [str(n) for n in range(20, 26)]
+BUDGET_TITLE = "Запросить бюджет"
+PDF_LINK_TEXT = "📥 Скачать PDF-брошюру программы"
+PDF_HREF = "brochure.pdf"
+
+PUBLISHED = {
+    "index.html", "brochure.html", "brochure.pdf",
+    "assets/css/site.css", "assets/css/brochure.css", "assets/js/budget.js", "assets/favicon.svg",
+}
+
+# Цены, ставки и себестоимость на веб-странице не публикуются (RFC 04, правила контента);
+# они есть в PDF (content/05) и высылаются по запросу бюджета.
 FORBIDDEN_MONEY = [
     (r"₽", "знак рубля"),
     (r"\bруб(?:\.|лей|ля|ль)?\b", "рубли"),
     (r"\bмлн\b", "млн (суммы)"),
-    (r"\bтыс\.\s*₽", "тыс. ₽"),
     (r"\bNRE\b", "NRE"),
     (r"\bOPEX\b", "OPEX"),
+    (r"\bCOGS\b", "COGS"),
     (r"себестоим", "себестоимость"),
     (r"\bмарж", "маржа"),
-    (r"\bставк", "ставки"),
     (r"\bНДС\b", "НДС"),
     (r"\bФОТ\b", "ФОТ"),
-    (r"\bцен[аеуыо]й?\b", "цена"),
-    (r"\bгонорар", "гонорар"),
 ]
 
-# Называется только JustAI; остальные — «российские модели», «модели в контуре компании».
-FORBIDDEN_VENDORS = [
-    "GigaChat", "ГигаЧат", "YandexGPT", "Yandex", "Яндекс", "Сбер", "Sber", "OpenAI", "ChatGPT",
-    r"\bGPT", "Claude", "Anthropic", "Gemini", "Google", "Llama", "Mistral", "DeepSeek", "Qwen",
-    "Kandinsky", "Алиса", "Microsoft", "Copilot", "MTS AI", "МТС",
+# Регресс: текст и файлы прежнего портала и служебные слова.
+FORBIDDEN_PORTAL = [
+    (r"open-ai\.ru", "open-ai.ru"),
+    (r"портал", "портал"),
 ]
-
-# Служебные слова, которых не должно быть в публичных файлах.
 FORBIDDEN_META = [
     (r"\bdraft\b", "draft"),
-    (r"\bversion\b", "version"),
     (r"\bissue\s*#", "issue #"),
     (r"черновик", "черновик"),
+    (r"lorem ipsum", "lorem ipsum"),
 ]
+
+CONTENT_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "th", "td"}
+HEADINGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
+
+# ---------------------------------------------------------------- HTML tree -----
 
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
 
@@ -148,58 +187,145 @@ def parse_html(source: str) -> Node:
     return b.root
 
 
-def norm(s: str) -> str:
-    """Нормализует пробелы и типографские мелочи для дословного сравнения."""
-    s = html.unescape(s).replace(" ", " ")
-    s = re.sub(r"\*\*|`", "", s)
-    return re.sub(r"\s+", " ", s).strip()
+def squash(s: str) -> str:
+    """Текст без пробелов и переносов строк: вёрстка переносит строки иначе, чем .md."""
+    return re.sub(r"\s+", "", html.unescape(s))
 
 
 # ------------------------------------------------------------ Markdown -----
+# Те же правила, что в scripts/brochure-common.mjs (проверка PDF).
 
-def md_section(text: str, heading: str) -> str:
-    """Текст раздела Markdown от заголовка, начинающегося с heading, до заголовка того же уровня."""
-    lines = text.splitlines()
-    for i, line in enumerate(lines):
-        m = re.match(r"^(#+)\s+(.*)$", line)
-        if m and m.group(2).startswith(heading):
-            level = len(m.group(1))
-            body = []
-            for nxt in lines[i + 1:]:
-                m2 = re.match(r"^(#+)\s", nxt)
-                if m2 and len(m2.group(1)) <= level:
-                    break
-                body.append(nxt)
-            return "\n".join(body)
-    raise LookupError(f"раздел «{heading}» не найден")
+def inline(s: str) -> str:
+    s = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", s)
+    return s.replace("**", "").strip()
 
 
-def md_table(section: str) -> list[list[str]]:
-    rows = []
-    for line in section.splitlines():
-        if line.startswith("|") and not re.match(r"^\|\s*-", line):
-            rows.append([norm(c) for c in line.strip().strip("|").split("|")])
-    return rows[1:]  # без заголовка
-
-
-def md_bullets(section: str) -> list[str]:
-    items: list[str] = []
-    for line in section.splitlines():
-        if line.startswith("- "):
-            items.append(line[2:])
-        elif line.startswith("  ") and items:
-            items[-1] += " " + line.strip()
-        elif not line.strip() and items and not items[-1].endswith("\n"):
+def md_blocks(markdown: str) -> list[tuple[str, str]]:
+    """Markdown → [(вид, текст)] в порядке файла; вид: h1–h6, p, li, td."""
+    out: list[tuple[str, str]] = []
+    for block in re.split(r"\n\s*\n", markdown.replace("\r", "")):
+        lines = [l for l in block.split("\n") if l.strip()]
+        if not lines:
             continue
-    return [norm(i) for i in items]
+        h = re.match(r"^(#{1,6}) (.*)$", lines[0])
+        if h and len(lines) == 1:
+            out.append((f"h{len(h.group(1))}", inline(h.group(2))))
+        elif lines[0].startswith("|"):
+            for line in lines:
+                if re.match(r"^\|[\s:|-]+\|$", line):
+                    continue
+                for cell in re.sub(r"\|$", "", re.sub(r"^\|", "", line)).split("|"):
+                    t = inline(cell)
+                    if t:
+                        out.append(("td", t))
+        elif lines[0].startswith("- "):
+            items: list[str] = []
+            for line in lines:
+                if line.startswith("- "):
+                    items.append(line[2:])
+                else:
+                    items[-1] += " " + line.strip()
+            out.extend(("li", inline(i)) for i in items)
+        else:
+            out.append(("p", inline(" ".join(lines))))
+    return out
 
 
-def md_paragraph(section: str) -> str:
-    return norm(" ".join(l for l in section.strip().split("\n\n")[0].splitlines()))
+def md_tables(markdown: str) -> int:
+    return sum(1 for b in re.split(r"\n\s*\n", markdown) if b.lstrip("\n").startswith("|"))
 
 
-def md_urls(section: str) -> set[str]:
-    return set(re.findall(r"\]\((https?://[^)\s]+)\)", section))
+def candidates(team_yml: Path = PROJECT / "_data" / "team.yml") -> list[dict]:
+    text = team_yml.read_text(encoding="utf-8")
+    block = re.split(r"^candidates:\s*$", text, flags=re.M)[1]
+    block = re.split(r"^\S", block, flags=re.M)[0]
+    out = []
+    for item in re.split(r"^  - ", block, flags=re.M)[1:]:
+        get = lambda k: (re.search(rf'^\s*{k}:\s*"?(.*?)"?\s*$', item, re.M) or [None, None])[1]  # noqa: E731
+        out.append({"slot": get("slot"), "name": get("name"), "consent": get("consent") == "true"})
+    return out
+
+
+def consent_filter(markdown: str, cands: list[dict]) -> str:
+    """То же правило, что _includes/consent.html: абзацы, которые не публикуются."""
+    shown = sum(1 for c in cands if c["consent"])
+    kept = []
+    for p in markdown.split("\n\n"):
+        keep = True
+        for c in cands:
+            if c["consent"]:
+                continue
+            if p.startswith(f'{c["slot"]}: '):
+                keep = False
+            if p.startswith("**Источники:**") and c["name"] in p:
+                keep = False
+        if p.startswith("**Метка GRA:**") and shown == 0:
+            keep = False
+        if keep:
+            kept.append(p)
+    return "\n\n".join(kept)
+
+
+def drop_sections(markdown: str, titles: list[str]) -> str:
+    """Убирает разделы H2 с заголовками titles (как параметр skip в _includes/md-doc.html)."""
+    parts = markdown.split("\n## ")
+    return "\n## ".join([parts[0]] + [p for p in parts[1:] if p.split("\n", 1)[0].strip() not in titles])
+
+
+def read_source(rel: str, cands: list[dict], web: bool = False) -> str:
+    md = (PROJECT / rel).read_text(encoding="utf-8")
+    if rel.endswith("03-appendix.md"):
+        md = consent_filter(md, cands)
+    if web and rel in WEB_SKIP:
+        md = drop_sections(md, WEB_SKIP[rel])
+    return md
+
+
+def config_value(key: str) -> str:
+    m = re.search(rf'^{key}:\s*"?(.*?)"?\s*$', (REPO / "_config.yml").read_text(encoding="utf-8"), re.M)
+    return m.group(1) if m else ""
+
+
+# ---------------------------------------------------------------- HTML -----
+
+def zone(node: Node) -> str:
+    """'ui' — служебный интерфейс (шапка, подвал, форма, кнопка PDF, заголовок формы), иначе 'content'."""
+    n: Node | None = node
+    while n is not None:
+        if n.tag in ("header", "footer", "form", "title") or "data-pdf-link" in n.attrs \
+                or n.attrs.get("id") == "budget-title":
+            return "ui"
+        n = n.parent
+    return "content"
+
+
+def text_nodes(node: Node):
+    for c in node.children:
+        if isinstance(c, str):
+            yield c, node
+        elif c.tag not in ("script", "style"):
+            yield from text_nodes(c)
+
+
+def nearest(node: Node | None, tags: set[str]) -> Node | None:
+    while node is not None and node.tag not in tags:
+        node = node.parent
+    return node
+
+
+def leaf_blocks(root: Node) -> list[Node]:
+    """Элементы-блоки текста (заголовки, абзацы, пункты, ячейки) без вложенных блоков."""
+    return [n for n in root.iter() if n.tag in CONTENT_TAGS and not any(d.tag in CONTENT_TAGS for d in n.iter())]
+
+
+def content_text(node: Node) -> str:
+    """Текст блока без служебных элементов внутри него (кнопка PDF в абзаце первого экрана)."""
+    return "".join(t for t, parent in text_nodes(node) if zone(parent) != "ui")
+
+
+def short(s: str, n: int = 70) -> str:
+    s = re.sub(r"\s+", " ", html.unescape(s)).strip()
+    return s if len(s) <= n else s[:n] + "…"
 
 
 # -------------------------------------------------------------- checks -----
@@ -216,286 +342,289 @@ class Report:
             self.errors.append(message)
 
 
-def check_structure(doc: Node, r: Report):
-    root = doc.find("html")
-    r.check(root is not None and root.attrs.get("lang") == "ru", "у <html> должен быть lang=\"ru\"")
-    ids = [n.attrs.get("id") for n in doc.find_all("section")]
-    r.check(ids == SECTION_ORDER, f"порядок разделов {ids}, ожидается {SECTION_ORDER}")
-    for img in doc.find_all("img"):
-        r.check("alt" in img.attrs, f"у <img src={img.attrs.get('src')}> нет атрибута alt")
-    vp = doc.find("meta", name="viewport")
-    r.check(vp is not None and "width=device-width" in (vp.attrs.get("content") or ""), "нет meta viewport")
-    for sid in SECTION_ORDER:
-        sec = doc.find("section", id=sid)
-        if sec is not None:
-            r.check(bool(sec.find_all("h1") or sec.find_all("h2")), f"в разделе #{sid} нет заголовка")
-    r.check(len(doc.find_all("h1")) == 1, "на странице должен быть ровно один <h1>")
+def check_verbatim(root: Node, sources: list[str], cands: list[dict], r: Report, where: str, web: bool,
+                   ui_text: set[str] | None = None):
+    """Каждый блок текста — блок источника; каждый блок источника — на странице, в порядке файлов."""
+    allowed = {"heading": set(), "p": set(), "li": set(), "td": set()}
+    order: list[tuple[str, str, str]] = []
+    for rel in sources:
+        for kind, text in md_blocks(read_source(rel, cands, web)):
+            group = "heading" if kind in HEADINGS else kind
+            allowed[group].add(squash(text))
+            order.append((rel, kind, text))
+    ui = {squash(t) for t in (ui_text or set())}
 
-
-def check_hero(doc: Node, summary: str, total: int, r: Report):
-    hero = doc.find("section", id="top")
-    text = norm(hero.text()) if hero else ""
-    goal = md_paragraph(md_section(summary, "Бизнес-цель"))
-    r.check(goal in text, "лендинг-хук: бизнес-цель не совпадает дословно с 01 «Бизнес-цель»")
-    title = re.match(r"^#\s+(.*)$", summary, re.M).group(1)
-    headline = norm(title.split(":", 1)[1])
-    h1 = hero.find("h1") if hero else None
-    r.check(h1 is not None and norm(h1.text()) == headline, f"лендинг-хук: h1 должен быть «{headline}»")
-    counters = {n.attrs["data-counter"]: norm(n.text()) for n in (hero.find_all(data_counter=True) if hero else [])}
-    r.check(list(counters) == ["hours", "offline", "practice", "prototype"], f"счётчики: {list(counters)}")
-    r.check(counters.get("hours", "").startswith(f"{total} а.ч."), f"счётчик часов: «{counters.get('hours')}», ожидается {total} а.ч.")
-    r.check(counters.get("offline", "").startswith("3 "), "счётчик очных блоков должен быть 3")
-    r.check(counters.get("practice", "").startswith("80 %") or counters.get("practice", "").startswith("80%"), "счётчик практики должен быть 80%")
-    r.check(counters.get("prototype", "").startswith("80 %") or counters.get("prototype", "").startswith("80%"), "счётчик прототипов должен быть 80%")
-    buttons = [norm(a.text()) for a in hero.find_all("a")] if hero else []
-    r.check("Запросить детальный бюджет" in buttons, "лендинг-хук: нет кнопки «Запросить детальный бюджет»")
-
-
-def check_outcomes(doc: Node, summary: str, r: Report):
-    sec = doc.find("section", id="outcomes")
-    cards = [c for c in (sec.iter() if sec else []) if c.tag == "li" and c.has_class("card")]
-    r.check(len(cards) == 4, f"«Что получает руководитель»: карточек {len(cards)}, ожидается 4")
-    text = norm(sec.text()) if sec else ""
-    for item in md_bullets(md_section(summary, "Что получает руководитель")):
-        r.check(item in text, f"«Что получает руководитель»: нет дословного пункта «{item[:60]}…»")
-    weeks = {n.attrs.get("id") for n in doc.find_all("li", data_week=True)}
-    for a in (sec.find_all("a", data_week_link=True) if sec else []):
-        r.check(a.attrs.get("href", "")[1:] in weeks, f"ссылка {a.attrs.get('href')} ведёт на несуществующую неделю")
-
-
-def check_zones(doc: Node, passport: str, r: Report):
-    sec = doc.find("section", id="zones")
-    rows = sec.find_all("tr", data_zone_row=True) if sec else []
-    expected = md_table(md_section(passport, "Уровень 2"))
-    expected = [row for row in expected if row[0] in ("Зелёная", "Жёлтая", "Красная")]
-    r.check(len(rows) == 3 and len(expected) == 3, "«Светофор данных»: ожидается 3 зоны")
-    for row, exp in zip(rows, expected):
-        cells = [norm(c.text()) for c in row.iter() if c.tag in ("th", "td")]
-        r.check(cells == exp, f"«Светофор данных»: строка {cells} не совпадает с 02: {exp}")
-    switch = sec.find(data_zones_switch=True) if sec else None
-    buttons = switch.find_all("button", data_zone=True) if switch else []
-    ids = [b.attrs.get("data-zone") for b in buttons]
-    r.check(ids[:3] == ["green", "yellow", "red"], f"переключатель зон: кнопки {ids}")
-    r.check(all("aria-pressed" in b.attrs for b in buttons), "кнопки переключателя зон должны иметь aria-pressed")
-
-
-def check_timeline(doc: Node, passport: str, r: Report) -> int:
-    section = md_section(passport, "Модульная структура")
-    expected = md_table(section)
-    m = re.search(r"Итого:\s*(\d+)\s*а\.ч\.", section)
-    passport_total = int(m.group(1)) if m else -1
-    weeks = doc.find_all("li", data_week=True)
-    r.check(len(weeks) == 12, f"таймлайн: недель {len(weeks)}, ожидается 12")
-    r.check(len(expected) == 12, f"паспорт: недель в таблице {len(expected)}, ожидается 12")
-    nums = [int(w.attrs["data-week"]) for w in weeks]
-    r.check(nums == list(range(12)), f"таймлайн: недели {nums}, ожидается 0–11 по порядку")
-    total = 0
-    offline = set()
-    for w, exp in zip(weeks, expected):
-        n = int(w.attrs["data-week"])
-        week_no, fmt, hours, lead, topics, result = exp
-        fields = {f.attrs["data-field"]: norm(f.text()) for f in w.find_all(data_field=True)}
-        r.check(str(n) == week_no, f"неделя {n}: в паспорте на этом месте неделя {week_no}")
-        r.check(fields.get("format") == fmt, f"неделя {n}: формат «{fields.get('format')}» ≠ «{fmt}»")
-        r.check(fields.get("hours") == hours and w.attrs.get("data-hours") == hours, f"неделя {n}: а.ч. {fields.get('hours')} ≠ {hours}")
-        r.check(fields.get("lead") == lead, f"неделя {n}: ведущий «{fields.get('lead')}» ≠ «{lead}»")
-        r.check(fields.get("topics") == topics, f"неделя {n}: темы не совпадают с 02 дословно")
-        r.check(fields.get("result") == result, f"неделя {n}: результат «{fields.get('result')}» ≠ «{result}»")
-        mode = w.attrs.get("data-mode")
-        r.check(mode == ("offline" if fmt.startswith("Очно") else "online"), f"неделя {n}: data-mode={mode} не соответствует «{fmt}»")
-        if mode == "offline":
-            offline.add(n)
-            r.check(w.has_class("week--offline"), f"неделя {n}: очная неделя должна быть выделена (week--offline)")
-        toggle = w.find("button", data_week_toggle=True)
-        r.check(toggle is not None and toggle.attrs.get("aria-controls") == f"week-{n}-body", f"неделя {n}: нет кнопки раскрытия с aria-controls")
-        total += int(w.attrs.get("data-hours") or 0)
-    r.check(offline == OFFLINE_WEEKS, f"очные недели {sorted(offline)}, ожидается {sorted(OFFLINE_WEEKS)}")
-    r.check(total == passport_total == 91, f"сумма а.ч. {total}, в паспорте «Итого» {passport_total}, ожидается 91")
-    total_node = doc.find(data_total_hours=True)
-    r.check(total_node is not None and total_node.attrs["data-total-hours"] == str(total), "итог таймлайна не совпадает с суммой недель")
-    if total_node is not None and m:
-        r.check(norm(total_node.text()) == norm(section[m.start():].splitlines()[0]), "строка «Итого» таймлайна не совпадает с 02")
-    nodes = doc.find_all("a", data_week_link=True)
-    rail = [a for a in nodes if a.has_class("rail__node")]
-    r.check(len(rail) == 12, f"ось таймлайна: узлов {len(rail)}, ожидается 12")
-    r.check({int(a.attrs["data-week-link"]) for a in rail if a.has_class("rail__node--offline")} == OFFLINE_WEEKS, "ось таймлайна: крупными должны быть узлы недель 1, 6, 11")
-    controls = doc.find(data_timeline_controls=True)
-    filters = [b.attrs.get("data-filter") for b in controls.find_all("button", data_filter=True)] if controls else []
-    r.check(filters == ["all", "offline", "online"], f"фильтр «очно / онлайн»: {filters}")
-    return total
-
-
-def check_evidence(doc: Node, summary: str, appendix: str, r: Report):
-    sec = doc.find("section", id="evidence")
-    text = norm(sec.text()) if sec else ""
-    for item in md_bullets(md_section(summary, "Почему так")):
-        title, _, rest = item.partition(". ")
-        r.check(norm(rest) in text, f"«Почему это работает»: нет дословного текста «{rest[:60]}…»")
-    s1 = md_section(appendix, "[1]")
-    s3 = md_section(appendix, "[3]")
-    allowed = md_urls(s1) | md_urls(s3)
-    shown = {a.attrs.get("href") for a in (sec.find_all("a") if sec else []) if (a.attrs.get("href") or "").startswith("http")}
-    for url in sorted(shown - allowed):
-        r.check(False, f"«Почему это работает»: ссылка {url} не из разделов [1] и [3] приложения")
-    for url in sorted(allowed - shown):
-        r.check(False, f"«Почему это работает»: не показана ссылка {url} из разделов [1]/[3] приложения")
-    for a in (sec.find_all("a") if sec else []):
-        if a.attrs.get("target") == "_blank":
-            r.check("noopener" in (a.attrs.get("rel") or ""), f"ссылка {a.attrs.get('href')} с target=_blank без rel=noopener")
-    for row in md_table(md_section(s1, "Проанализировано") if "### Проанализировано" in s1 else s1):
-        if len(row) == 2:
-            r.check(row[0] in text and row[1] in text, f"«Почему это работает»: нет строки «{row[0][:50]}» из [1]")
-
-
-def check_evaluation(doc: Node, passport: str, r: Report):
-    sec = doc.find("section", id="evaluation")
-    steps = [n for n in (sec.iter() if sec else []) if n.tag == "li" and n.has_class("step")]
-    expected = md_table(md_section(passport, "Уровень 5"))
-    r.check(len(steps) == 4 and len(expected) == 4, f"оценка: уровней {len(steps)}, ожидается 4 (L1–L4)")
-    for step, exp in zip(steps, expected):
-        text = norm(step.text())
-        for cell in exp:
-            r.check(cell in text, f"оценка {exp[0]}: нет дословного «{cell}»")
-
-
-def check_team(doc: Node, summary: str, appendix: str, r: Report):
-    sec = doc.find("section", id="team")
-    page_text = norm(doc.text())
-    text = norm(sec.text()) if sec else ""
-    for role, task, req in md_table(md_section(summary, "Команда")):
-        for cell in (role, task, req):
-            r.check(cell in text, f"«Наша команда»: нет «{cell}» из 01")
-    lis = sec.find_all("li", data_consent=True) if sec else []
-    by_slot = {}
-    for li in lis:
-        slot = next((p for p in li.iter() if p.has_class("candidate__slot")), None)
-        if slot is not None:
-            by_slot[norm(slot.text())] = li
-    cands = re.findall(r"^(.+?\d): (.+?) \| (.+?) \| (.+?) \| Метка GRA", md_section(appendix, "[4]"), re.M)
-    r.check(len(cands) == 4, f"приложение [4]: найдено кандидатов {len(cands)}")
-    for slot, name, company, fact in cands:
-        li = by_slot.get(norm(slot))
-        r.check(li is not None, f"«Наша команда»: нет карточки «{slot}»")
-        if li is None:
+    for text, parent in text_nodes(root):
+        if not text.strip():
             continue
-        consent = li.attrs.get("data-consent")
-        li_text = norm(li.text())
-        if consent == "true":
-            r.check(norm(name) in li_text and norm(company) in li_text, f"«{slot}»: consent: true, но ФИО/компания не показаны")
-        else:
-            r.check(consent == "false", f"«{slot}»: data-consent должен быть true или false")
-            r.check(norm(name) not in page_text, f"«{slot}»: consent: false, но ФИО «{name}» есть на странице")
-            r.check(norm(fact) not in page_text, f"«{slot}»: consent: false, но факт из [4] есть на странице")
-            r.check(norm(company) not in li_text, f"«{slot}»: consent: false, но компания показана в карточке")
-            r.check(not any(n.tag == "a" for n in li.iter()), f"«{slot}»: consent: false, но в карточке есть ссылки")
-    hidden_names = [norm(n) for s, n, c, f in cands if by_slot.get(norm(s)) is not None and by_slot[norm(s)].attrs.get("data-consent") == "false"]
-    for name in hidden_names:
-        r.check(name not in doc_source_cache["html"], f"ФИО «{name}» есть в HTML-коде страницы при consent: false")
+        if zone(parent) == "ui":
+            owner = parent
+            r.check(squash(owner.text()) in ui,
+                    f"{where}: служебный текст «{short(owner.text())}» не входит в подписи интерфейса")
+            continue
+        r.check(nearest(parent, CONTENT_TAGS) is not None,
+                f"{where}: текст вне заголовков, абзацев, списков и таблиц: «{short(text)}»")
+
+    for n in leaf_blocks(root):
+        if zone(n) == "ui":
+            continue
+        group = "heading" if n.tag in HEADINGS else {"th": "td"}.get(n.tag, n.tag)
+        t = squash(content_text(n))
+        if not t:
+            continue
+        r.check(t in allowed[group],
+                f"{where}: <{n.tag}> «{short(n.text())}» не совпадает дословно ни с одним блоком {', '.join(sources)}")
+
+    text = squash(root.text())
+    pos = 0
+    for rel, kind, block in order:
+        needle = squash(block)
+        at = text.find(needle, pos)
+        if at < 0:
+            r.check(False, f"{where}: {rel}: {kind} «{short(block)}» "
+                           f"{'стоит не по порядку' if needle in text else 'отсутствует'}")
+            continue
+        r.passed += 1
+        pos = at + len(needle)
+
+
+def headings(root: Node) -> list[tuple[int, str]]:
+    return [(int(n.tag[1]), squash(n.text())) for n in root.iter() if n.tag in HEADINGS]
+
+
+def md_headings(markdown: str) -> list[tuple[int, str]]:
+    return [(int(k[1]), squash(t)) for k, t in md_blocks(markdown) if k in HEADINGS]
+
+
+def check_structure(doc: Node, r: Report, title: str):
+    root = doc.find("html")
+    r.check(root is not None and root.attrs.get("lang") == "ru", "у <html> нет lang=\"ru\"")
+    t = doc.find("title")
+    r.check(t is not None and t.text().strip() == title, f"<title> должен быть «{title}» (title в _config.yml)")
+    main = doc.find("main")
+    r.check(main is not None, "нет <main>")
+    if main is None:
+        return
+    ids = [s.attrs.get("id") for s in main.find_all("section") if nearest(s.parent, {"section"}) is None]
+    r.check(ids == SECTION_ORDER, f"разделы страницы {ids}, ожидается {SECTION_ORDER}")
+    nav = doc.find("nav")
+    links = [(a.text().strip(), a.attrs.get("href")) for a in nav.find_all("a")] if nav else []
+    r.check(links == NAV, f"меню {links}, ожидается {NAV}")
+    for _, href in NAV:
+        r.check(doc.find(id=href[1:]) is not None, f"пункт меню {href} ведёт на несуществующий раздел")
+    scripts = [s.attrs.get("src") for s in doc.find_all("script")]
+    r.check(scripts == ["assets/js/budget.js"], f"на странице должен быть только assets/js/budget.js, найдено {scripts}")
+    for img in doc.find_all("img"):
+        r.check(bool((img.attrs.get("alt") or "").strip()), f"у изображения {img.attrs.get('src')} нет alt")
+    for n in doc.iter():
+        for attr in ("src",):
+            v = n.attrs.get(attr) or ""
+            r.check(not v.startswith(("http:", "https:", "//")), f"внешний ресурс {v}")
+        if n.tag == "link":
+            v = n.attrs.get("href") or ""
+            r.check(not v.startswith(("http:", "https:", "//")), f"внешний ресурс {v}")
+
+
+def check_hero(doc: Node, summary_md: str, site: Path, r: Report, require_pdf: bool):
+    hero = doc.find(id="top")
+    if hero is None:
+        r.check(False, "нет первого экрана (#top)")
+        return
+    blocks = md_blocks(summary_md)
+    h1 = hero.find("h1")
+    r.check(h1 is not None and squash(h1.text()) == squash(blocks[0][1]),
+            f"заголовок первого экрана должен совпадать с H1 01-project-summary.md: «{blocks[0][1]}»")
+    r.check(len(doc.find_all("h1")) == 1, "на странице должен быть один <h1>")
+    sub = [n for n in leaf_blocks(hero) if n.tag == "p" and squash(content_text(n))]
+    r.check(bool(sub) and squash(sub[0].text()) == squash(blocks[1][1]),
+            f"подзаголовок первого экрана должен совпадать со строкой под H1: «{blocks[1][1]}»")
+    links = doc.find_all("a", data_pdf_link=True)
+    r.check(len(links) == 1, f"на странице должна быть одна ссылка на PDF (data-pdf-link), найдено {len(links)}")
+    a = hero.find("a", data_pdf_link=True)
+    r.check(a is not None, "ссылка на PDF-брошюру должна быть в первом экране")
+    if a is None:
+        return
+    r.check(a.text().strip() == PDF_LINK_TEXT, f"текст ссылки на PDF «{a.text().strip()}», ожидается «{PDF_LINK_TEXT}»")
+    r.check("download" in a.attrs, "у ссылки на PDF нет атрибута download")
+    r.check(a.attrs.get("href") == PDF_HREF,
+            f"href ссылки на PDF «{a.attrs.get('href')}», ожидается «{PDF_HREF}» (относительно страницы программы)")
+    if require_pdf:
+        pdf = site / PDF_HREF
+        ok = pdf.is_file() and pdf.read_bytes()[:5] == b"%PDF-"
+        r.check(ok, f"ссылка на PDF ведёт на {pdf}, а файла нет или это не PDF")
 
 
 def check_budget(doc: Node, r: Report, allow_missing_email: bool):
-    sec = doc.find("section", id="budget")
-    form = sec.find("form", data_budget_form=True) if sec else None
-    r.check(form is not None, "нет формы «Запросить детальный бюджет»")
-    if form is None:
+    section = doc.find(id="budget")
+    form = doc.find("form", data_budget_form=True)
+    if section is None or form is None:
+        r.check(False, "нет раздела #budget с формой data-budget-form")
         return
-    names = [n.attrs.get("name") for n in form.iter() if n.tag in ("input", "select")]
-    r.check(names == FORM_FIELDS, f"поля формы {names}, ожидается {FORM_FIELDS}")
-    for n in form.iter():
-        if n.tag in ("input", "select"):
-            label = form.find("label", **{"for": n.attrs.get("id", "")})
-            r.check(label is not None, f"у поля {n.attrs.get('name')} нет <label>")
-    email = form.find("input", type="email")
-    r.check(email is not None, "поле E-mail должно быть type=email")
-    select = form.find("select", name="Размер группы")
-    options = [o.attrs.get("value") for o in select.iter() if o.tag == "option"] if select else []
-    r.check(options == [str(n) for n in range(20, 26)], f"размер группы: варианты {options}, ожидается строго 20–25")
-    address = (form.attrs.get("data-email") or "").strip()
+    title = section.find("h2")
+    r.check(title is not None and title.text().strip() == BUDGET_TITLE, f"заголовок формы должен быть «{BUDGET_TITLE}»")
+    r.check(nearest(form.parent, {"section"}) is section, "форма должна быть в разделе #budget")
+    r.check(len(doc.find_all("form")) == 1, "на странице должна быть одна форма")
+    controls = [n for n in form.iter() if n.tag in ("input", "select", "textarea")]
+    kinds = [n.attrs.get("type", "text") if n.tag == "input" else n.tag for n in controls]
+    r.check(kinds == [k for _, k in FORM_FIELDS],
+            f"поля формы {kinds}, ожидается ровно {[f'{l} ({k})' for l, k in FORM_FIELDS]}")
+    labels = form.find_all("label")
+    r.check([l.text().strip() for l in labels] == [l for l, _ in FORM_FIELDS],
+            f"подписи полей {[l.text().strip() for l in labels]}, ожидается {[l for l, _ in FORM_FIELDS]}")
+    for label, ctl in zip(labels, controls):
+        r.check(label.attrs.get("for") and label.attrs.get("for") == ctl.attrs.get("id"),
+                f"подпись «{label.text().strip()}» не связана со своим полем (for/id)")
+        r.check("required" in ctl.attrs, f"поле «{label.text().strip()}» должно быть обязательным (required)")
+    for n in doc.iter():
+        if n.tag == "input":
+            r.check(n.attrs.get("type") not in ("checkbox", "radio"), "на странице не должно быть флажков и переключателей")
+    selects = form.find_all("select")
+    opts = [(o.attrs.get("value"), o.text().strip()) for o in selects[0].find_all("option")] if selects else []
+    r.check(opts == [(v, v) for v in GROUP_SIZES], f"размер группы {opts}, ожидается выбор {GROUP_SIZES[0]}–{GROUP_SIZES[-1]}")
+    buttons = form.find_all("button")
+    r.check(len(buttons) == 1 and buttons[0].text().strip() == BUDGET_TITLE and buttons[0].attrs.get("type") == "submit",
+            f"в форме должна быть одна кнопка отправки «{BUDGET_TITLE}»")
+    r.check(all("disabled" not in b.attrs for b in buttons), "кнопка формы не должна быть отключена")
     action = form.attrs.get("action") or ""
-    r.check(action.startswith("mailto:" + address), "action формы должен быть mailto: на budget_email")
-    if address:
-        r.check(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", address) is not None, f"budget_email «{address}» не похож на e-mail")
-    elif not allow_missing_email:
-        r.check(False, "budget_email в _config.yml не заполнен: укажите адрес получателя запросов детального бюджета "
-                       "(_config.yml в корне репозитория, поле budget_email) и сделайте push в main")
+    r.check(action.startswith("mailto:"), "форма отправляется только через mailto: (без внешних сервисов)")
+    email = (form.attrs.get("data-email") or "").strip()
+    if email:
+        r.check(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email) is not None, f"budget_email «{email}» не похож на e-mail")
+        r.check(action.startswith(f"mailto:{email}"), "адрес в action формы не совпадает с budget_email")
+    else:
+        r.check(allow_missing_email, "не указан адрес для запросов бюджета: заполните budget_email в _config.yml "
+                                     "(корень репозитория) и сделайте push в main")
 
 
-def check_content_rules(source: str, doc: Node, r: Report):
-    visible = norm(doc.text())
-    for pattern, label in FORBIDDEN_MONEY:
-        hit = re.search(pattern, visible, re.I)
-        r.check(hit is None, f"на сайте есть коммерческие данные ({label}): «…{visible[max(0, hit.start() - 40):hit.end() + 40]}…»" if hit else "")
-    for vendor in FORBIDDEN_VENDORS:
-        hit = re.search(vendor if vendor.startswith("\\") else re.escape(vendor), visible)
-        r.check(hit is None, f"на сайте названа сторонняя модель или вендор: «{vendor}»")
-    for pattern, label in FORBIDDEN_META:
-        hit = re.search(pattern, source, re.I)
-        r.check(hit is None, f"в HTML есть служебное слово «{label}»")
-    for m in re.finditer(r"(?<!\d)(?<!по )(\d+)\s*[–-]\s*(\d+)\s+(человек|руководител\w*|участник\w*)", visible):
-        r.check((m.group(1), m.group(2)) == ("20", "25"), f"размер группы «{m.group(0)}», допускается только «20–25»")
-    r.check("20–25 человек" in visible, "на странице нет формулировки «20–25 человек»")
-    for m in re.finditer(r"по\s+(\d+)\s*[–-]\s*(\d+)\s+(человек|коллег)", visible):
-        r.check((m.group(1), m.group(2)) == ("4", "5"), f"размер сета «{m.group(0)}», допускается только «4–5»")
-    r.check("сетов по 4–5 человек" in visible or "сеты по 4–5 человек" in visible, "на странице нет формулировки о сетах по 4–5 человек")
+def check_web(doc: Node, site: Path, cands: list[dict], r: Report, title: str):
+    ui = {title, BUDGET_TITLE, PDF_LINK_TEXT, *(t for t, _ in NAV), *(l for l, _ in FORM_FIELDS), *GROUP_SIZES}
+    body = doc.find("body")
+    if body is None:
+        r.check(False, "нет <body>")
+        return
+    check_verbatim(body, [rel for _, rel in WEB_SOURCES], cands, r, "index.html", web=True, ui_text=ui)
+    hero = doc.find(id="top")
+    for sid, rel in WEB_SOURCES:
+        sec = doc.find(id=sid)
+        if sec is None:
+            continue
+        md = read_source(rel, cands, web=True)
+        expected = md_headings(md)
+        got = headings(sec)
+        if sid == "summary":
+            got = (headings(hero) if hero else []) + got
+            shift = 0
+        else:
+            shift = 1  # H1 файла → заголовок раздела <h2>, H2 → <h3> в аккордеоне, H3 → <h4>
+        r.check(got == [(lvl + shift, t) for lvl, t in expected],
+                f"index.html #{sid}: заголовки и их уровни не совпадают с {rel}")
+        tables = len(sec.find_all("table"))
+        r.check(tables == md_tables(md), f"index.html #{sid}: таблиц {tables}, в {rel} — {md_tables(md)}")
+        items = len(sec.find_all("li"))
+        md_items = sum(1 for k, _ in md_blocks(md) if k == "li")
+        r.check(items == md_items, f"index.html #{sid}: пунктов списка {items}, в {rel} — {md_items}")
+    for sid in ("passport", "appendix"):
+        sec = doc.find(id=sid)
+        parts = sec.find_all("details") if sec else []
+        r.check(bool(parts) and all(p.find("summary") is not None for p in parts),
+                f"index.html #{sid}: разделы H2 должны быть аккордеонами <details>/<summary>")
 
 
-def check_site_files(site: Path, r: Report):
-    published = [p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()]
-    for p in published:
-        r.check(not p.endswith(".md") and not p.startswith(("content/", "tests/", "docs/")) and p != "README.md",
-                f"в публикацию попал служебный файл {p}")
-    for js in ("assets/js/timeline.js", "assets/js/zones.js", "assets/css/site.css"):
-        r.check(js in published, f"в публикации нет {js}")
+def check_brochure(doc: Node, cands: list[dict], r: Report, title: str):
+    body = doc.find("body")
+    arts = doc.find_all("article")
+    got = [(a.attrs.get("id"), a.attrs.get("data-source")) for a in arts]
+    r.check(got == BROCHURE_ORDER, f"brochure.html: разделы {got}, ожидается строго {BROCHURE_ORDER}")
+    t = doc.find("title")
+    r.check(t is not None and t.text().strip() == title, f"brochure.html: <title> должен быть «{title}»")
+    r.check(doc.find("form") is None and doc.find("script") is None, "brochure.html: без форм и скриптов")
+    if body is None:
+        return
+    check_verbatim(body, [rel for _, rel in BROCHURE_ORDER], cands, r, "brochure.html", web=False, ui_text={title})
+    for a, (aid, rel) in zip(arts, BROCHURE_ORDER):
+        md = read_source(rel, cands)
+        r.check(headings(a) == md_headings(md), f"brochure.html #{aid}: заголовки H1–H6 не совпадают с {rel} (уровни и текст)")
+        r.check(len(a.find_all("table")) == md_tables(md), f"brochure.html #{aid}: число таблиц не совпадает с {rel}")
+        md_items = sum(1 for k, _ in md_blocks(md) if k == "li")
+        r.check(len(a.find_all("li")) == md_items, f"brochure.html #{aid}: число пунктов списка не совпадает с {rel}")
+        h1 = a.find_all("h1")
+        r.check(len(h1) == 1 and a.find(None) is h1[0], f"brochure.html #{aid}: раздел должен начинаться со своего H1")
 
 
-doc_source_cache: dict[str, str] = {}
+def check_rules(name: str, source: str, doc: Node, cands: list[dict], r: Report, money: bool):
+    visible = re.sub(r"\s+", " ", doc.text())
+    if money:
+        for pattern, label in FORBIDDEN_MONEY:
+            hit = re.search(pattern, visible)
+            r.check(hit is None, f"{name}: на веб-странице есть коммерческие данные ({label}): "
+                                 f"«…{visible[max(0, hit.start() - 40):hit.end() + 40]}…»" if hit else "")
+    for pattern, label in FORBIDDEN_PORTAL + FORBIDDEN_META:
+        r.check(re.search(pattern, source, re.I) is None, f"{name}: есть «{label}» — текст прежнего портала или служебное слово")
+    for c in cands:
+        if not c["consent"]:
+            r.check(c["name"] not in source, f"{name}: имя кандидата без согласия «{c['name']}» (consent: false)")
 
 
-def run(site: Path, allow_missing_email: bool) -> Report:
+def check_site_files(site: Path, r: Report, require_pdf: bool):
+    published = {p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()}
+    for p in sorted(published - PUBLISHED):
+        r.check(False, f"в публикацию попал лишний файл {p} (допускаются: {', '.join(sorted(PUBLISHED))})")
+    need = PUBLISHED if require_pdf else PUBLISHED - {"brochure.pdf"}
+    for p in sorted(need - published):
+        r.check(False, f"в публикации нет {p}")
+
+
+def run(site: Path, allow_missing_email: bool = False, require_pdf: bool = False) -> Report:
     r = Report()
     index = site / "index.html"
-    if not index.is_file():
-        raise FileNotFoundError(f"нет {index}: сначала соберите сайт")
-    source = index.read_text(encoding="utf-8")
-    doc_source_cache["html"] = source
-    doc = parse_html(source)
-    summary = (CONTENT / "01-project-summary.md").read_text(encoding="utf-8")
-    passport = (CONTENT / "02-project-passport.md").read_text(encoding="utf-8")
-    appendix = (CONTENT / "03-appendix.md").read_text(encoding="utf-8")
+    brochure = site / "brochure.html"
+    for f in (index, brochure):
+        if not f.is_file():
+            raise FileNotFoundError(f"нет {f}: сначала соберите сайт")
+    title = config_value("title")
+    cands = candidates()
+    summary = read_source("content/01-project-summary.md", cands, web=True)
+    r.check(bool(title) and squash(title) in squash(md_blocks(summary)[0][1]),
+            "title в _config.yml должен быть частью H1 01-project-summary.md")
 
-    check_structure(doc, r)
-    total = check_timeline(doc, passport, r)
-    check_hero(doc, summary, total, r)
-    check_outcomes(doc, summary, r)
-    check_zones(doc, passport, r)
-    check_evidence(doc, summary, appendix, r)
-    check_evaluation(doc, passport, r)
-    check_team(doc, summary, appendix, r)
+    src = index.read_text(encoding="utf-8")
+    doc = parse_html(src)
+    check_structure(doc, r, title)
+    check_hero(doc, summary, site, r, require_pdf)
+    check_web(doc, site, cands, r, title)
     check_budget(doc, r, allow_missing_email)
-    check_content_rules(source, doc, r)
-    check_site_files(site, r)
+    check_rules("index.html", src, doc, cands, r, money=True)
+
+    bsrc = brochure.read_text(encoding="utf-8")
+    bdoc = parse_html(bsrc)
+    check_brochure(bdoc, cands, r, title)
+    check_rules("brochure.html", bsrc, bdoc, cands, r, money=False)
+
+    check_site_files(site, r, require_pdf)
     return r
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--site", type=Path, default=PROJECT.parent.parent / "_site", help="каталог собранного сайта")
+    ap.add_argument("--site", type=Path, default=REPO / "_site" / "projects" / "ai-team-management-program",
+                    help="каталог собранного сайта программы")
     ap.add_argument("--allow-missing-email", action="store_true",
-                    help="не считать ошибкой пустой budget_email (локальная сборка и pull request)")
+                    help="не считать ошибкой пустой budget_email (пока владелец не указал адрес)")
+    ap.add_argument("--require-pdf", action="store_true", help="brochure.pdf должен быть в каталоге сборки")
     args = ap.parse_args(argv)
     try:
-        r = run(args.site, args.allow_missing_email)
-    except (FileNotFoundError, LookupError) as e:
+        r = run(args.site, args.allow_missing_email, args.require_pdf)
+    except (FileNotFoundError, LookupError, IndexError) as e:
         print(f"ОШИБКА: {e}", file=sys.stderr)
         return 2
     if r.errors:
         print(f"Проверка сайта: {len(r.errors)} расхождений (пройдено {r.passed}):", file=sys.stderr)
         for e in r.errors:
             print(f"  ✗ {e}", file=sys.stderr)
-            if "budget_email" in e and "GITHUB_ACTIONS" in __import__("os").environ:
+            if "budget_email" in e and "GITHUB_ACTIONS" in os.environ:
                 print(f"::error title=Не указан адрес для запросов бюджета::{e}", file=sys.stderr)
         return 1
-    print(f"Проверка сайта пройдена: {r.passed} проверок, расхождений с content/*.md нет.")
+    print(f"Проверка сайта пройдена: {r.passed} проверок, текст совпадает с content/*.md слово в слово.")
     return 0
 
 
