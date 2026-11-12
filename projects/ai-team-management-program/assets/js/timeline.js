@@ -128,6 +128,12 @@
     root.classList.add('is-enhanced');
     applyFilter(filter);
     if (match) openWeek(match[1], false);
+
+    // Переход по #week-N без перезагрузки страницы (ввод адреса, обычная ссылка).
+    window.addEventListener('hashchange', function () {
+      var m = /^#week-(\d+)$/.exec(window.location.hash);
+      if (m) openWeek(m[1], true);
+    });
   }
 
   function start() {
