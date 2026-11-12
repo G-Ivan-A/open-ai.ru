@@ -151,7 +151,9 @@ class MarkdownHelpers(unittest.TestCase):
     def test_summary_economics_for_group_of_25(self):
         md = (check_site.CONTENT / "01-project-summary.md").read_text(encoding="utf-8")
         econ = md.split("## Экономика")[1].split("\n## ")[0]
-        self.assertIn("25 × 175 000 ₽ =\n4 375 000 ₽ (4,375 млн ₽)", econ)
+        # Выручка за 25 человек: 20 × 175 000 ₽ + 5 × 140 000 ₽ (участник с 21-го по 25-й — 80% цены).
+        self.assertIn("выручка = 20 × 175 000 ₽ + 5 × 140 000 ₽ = 4 200 000 ₽ (4,20 млн ₽)", " ".join(econ.split()))
+        self.assertEqual(20 * 175_000 + 5 * 140_000, 4_200_000)
         num = lambda s: float(s.replace(" ", "").replace(",", ".").replace("−", "-"))  # noqa: E731
 
         def row(table: str, title: str) -> str:
@@ -164,11 +166,14 @@ class MarkdownHelpers(unittest.TestCase):
         self.assertAlmostEqual(num(row(first, "Итого себестоимость первого потока")), nre + opex)
         for table, cost in ((first, nre + opex), (repeat, opex)):
             revenue = num(row(table, "Итого выручка (Цена для заказчика)"))
-            self.assertAlmostEqual(revenue, 25 * 175_000 / 1e6)
+            self.assertAlmostEqual(revenue, (20 * 175_000 + 5 * 140_000) / 1e6)
             margin = num(row(table, "Итого маржинальность").rstrip("%"))
             self.assertEqual(margin, round((revenue - cost) / revenue * 100, 1))
         self.assertAlmostEqual(num(row(repeat, "Итого себестоимость повторного потока")), opex)
-        self.assertIn(f"повторный поток — {row(repeat, 'OPEX — поток 25 участников')} млн ₽.", econ)
+        note = " ".join(econ.split())
+        self.assertIn("Участник с 21-го по 25-й — 140 тыс. ₽; повторный поток — 3,50 млн ₽ за 20 участников, "
+                      f"{row(repeat, 'Итого выручка (Цена для заказчика)')} млн ₽ за 25 участников.", note)
+        self.assertEqual(20 * 175_000, 3_500_000)
 
     def test_detailed_economics_totals(self):
         md = (check_site.CONTENT / "05-detailed-economics.md").read_text(encoding="utf-8")
@@ -193,12 +198,34 @@ class MarkdownHelpers(unittest.TestCase):
         self.assertEqual(total(cogs, "COGS первого потока"), nre + opex)
         self.assertEqual(total(cogs, "COGS повторного потока"), opex)
         price = section("## 4. Цена для заказчика")
-        self.assertEqual(total(price, "Поток 25 участников: 25 × 175 000 ₽"), 25 * 175_000)
+        base, extra = total(price, "Цена за участника"), total(price, "Участник с 21-го по 25-й")
+        self.assertEqual((base, extra), (175_000, 140_000))
+        self.assertEqual(extra, round(base * 0.8))
+        self.assertEqual(total(price, "Поток 20 участников: 20 × 175 000 ₽"), 20 * base)
+        revenue = total(price, "Поток 25 участников: 20 × 175 000 ₽ + 5 × 140 000 ₽")
+        self.assertEqual(revenue, 20 * base + 5 * extra)
+        self.assertEqual(total(price, "Первый поток целиком (NRE + OPEX)"), revenue)
+        self.assertEqual(total(price, "Повторный поток 25 участников"), revenue)
+        # Переменная себестоимость участника с 21-го по 25-й и связь OPEX 20 → 25 участников.
+        variable = 12 * 650 + 2_500 + 3 * 3_500
+        self.assertEqual(variable, 20_800)
+        self.assertEqual(opex, 2_116_800 + 5 * variable)
+        self.assertIn("итого 20 800 ₽", " ".join(md.split()))
         margin = section("## 5. Маржинальность")
-        for r, cost in zip(margin, (nre + opex, opex)):
-            self.assertEqual((num(r[1]), num(r[2])), (cost, 4_375_000))
-            pct = float(r[4].replace("**", "").replace("%", "").replace(",", ".").replace("−", "-"))
-            self.assertEqual(pct, round((4_375_000 - cost) / 4_375_000 * 100, 1))
+        pct = lambda c: float(c.replace("**", "").replace("%", "").replace(",", ".").replace("−", "-"))  # noqa: E731
+        for r, (cost, rev) in zip(margin, ((nre + opex, revenue), (opex, revenue), (variable, extra))):
+            self.assertEqual((num(r[1]), num(r[2])), (cost, rev), r)
+            self.assertEqual(r[3], f"({rev:,} − {cost:,}) / {rev:,} × 100%".replace(",", " "), r)
+            self.assertEqual(pct(r[4]), round((rev - cost) / rev * 100, 1), r)
+        self.assertEqual(len(margin), 3)
+        # Структура COGS первого потока (доли в %, сумма — 100%).
+        cogs_total = nre + opex
+        shares = {"ФОТ с взносами": 2_210_000 + 1_627_600, "видеопроизводство": 200_000,
+                  "песочница JustAI": 304_500, "кофе-брейки": 226_200, "раздаточные материалы": 62_500}
+        self.assertEqual(sum(shares.values()), cogs_total)
+        text = " ".join(md.split())
+        for label, value in shares.items():
+            self.assertIn(f"{label} — {round(value / cogs_total * 100, 1):.1f}%".replace(".", ","), text)
 
     def test_passport_has_12_weeks_and_91_hours(self):
         passport = (check_site.CONTENT / "02-project-passport.md").read_text(encoding="utf-8")
