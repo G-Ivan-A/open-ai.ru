@@ -4,7 +4,7 @@ layout: default
 {%- comment -%}
   Цифровая брошюра программы. Все тексты — дословно из content/*.md (SSOT):
   01-project-summary.md → первый экран и «Резюме проекта» (без раздела «Экономика»:
-  цены — по запросу из формы «Запросить бюджет» и в PDF-брошюре);
+  цены и маржинальность — только в PDF-брошюре);
   02-project-passport.md → «Паспорт проекта»; 03-appendix.md → «Приложение»
   (кандидаты — по согласию, _data/team.yml). Полный текст 01 → 02 → 05 → 03 —
   в brochure.html / brochure.pdf.
@@ -17,4 +17,3 @@ layout: default
 {% include md-doc.html source=summary id="summary" heading="page" label="Резюме проекта" skip="Экономика" %}
 {% include md-doc.html source=passport id="passport" heading="section" %}
 {% include md-doc.html source=appendix id="appendix" heading="section" %}
-{% include budget.html %}
