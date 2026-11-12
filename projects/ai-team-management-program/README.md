@@ -1,71 +1,85 @@
-# «ИИ в работе с командой» — сайт-презентация программы
+# «ИИ в работе с командой» — цифровая брошюра программы
 
-Публичный одностраничный сайт корпоративной программы «ИИ в работе с командой»:
-11 недель от ручной рутины к собственным ИИ-агентам, 20–25 руководителей,
-3 очных блока, 91 а.ч.
+Веб-страница и PDF-брошюра корпоративной программы «ИИ в работе с командой».
+Весь текст берётся дословно из файлов `content/*.md` (SSOT): без пересказа,
+сокращений и рекламных формулировок. Шаблоны меняют только оформление —
+раскрывающиеся блоки, таблицы, уровни заголовков на веб-странице.
 
-- Адрес публикации: <https://g-ivan-a.github.io/open-ai.ru/>
-- Движок: Jekyll без внешних тем (сборка `actions/jekyll-build-pages`, gem `github-pages`).
+- Веб-страница: <https://g-ivan-a.github.io/open-ai.ru/projects/ai-team-management-program/>
+  (корень <https://g-ivan-a.github.io/open-ai.ru/> перенаправляет сюда).
+- PDF: <https://g-ivan-a.github.io/open-ai.ru/projects/ai-team-management-program/brochure.pdf>.
+- Движок: Jekyll без внешних тем (`actions/jekyll-build-pages`, gem `github-pages`);
+  PDF — Puppeteer (системный Chrome).
 - Публикация: [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml),
   проверка в pull request: [`.github/workflows/pages-check.yml`](../../.github/workflows/pages-check.yml).
 
+## Что публикуется
+
+| Файл | Содержание |
+| --- | --- |
+| `index.html` | Первый экран: H1 и строка под ним из `01-project-summary.md`, ссылка «📥 Скачать PDF-брошюру программы». Далее — «Резюме проекта» (01, без раздела «Экономика»), «Паспорт проекта» (02), «Приложение» (03) и форма «Запросить бюджет». |
+| `brochure.html` | Страница для печати: полный текст 01 → 02 → 05 → 03, у каждого файла свой H1, заголовки H1/H2/H3, списки и таблицы — как в `.md`. Источник PDF. |
+| `brochure.pdf` | brochure.html, напечатанная в A4 с полями 2 см; шрифты с кириллицей (Liberation Sans, DejaVu Sans) встроены. Закладки — по заголовкам. |
+
+Цены (`05-detailed-economics.md` и раздел «Экономика» из 01) на веб-странице не
+выводятся: они есть в PDF-брошюре и высылаются по запросу из формы.
+
+Форма «Запросить бюджет» — ровно пять полей: Имя, Компания, Должность, E-mail,
+Размер группы (выпадающий список 20–25). Чекбоксов нет. Кнопка открывает письмо
+(`mailto:`) на адрес `budget_email` из корневого `_config.yml`.
+
 ## Как обновить контент
 
-Как обновить контент: заменить файлы в `content/` и данные в `_data/` внутри этого каталога, затем сделать push в `main`.
+1. Заменить файлы в `content/` (копии из
+   `G-Ivan-A/hybrid-Intelligence-lab`, `projects/ai-team-management-program/pop-3m/`).
+2. Сделать push в `main` (или открыть pull request).
 
-После push в `main` сайт собирается из корня репозитория (корневой `_config.yml`
-берёт макеты, разделы и данные из этого каталога) и публикуется по адресу
-<https://g-ivan-a.github.io/open-ai.ru/projects/ai-team-management-program/>;
-корневой `index.html` перенаправляет туда с <https://g-ivan-a.github.io/open-ai.ru/>.
-Workflow `pages.yml` сверяет страницу с `content/*.md` (`tests/check_site.py`). Если
-данные в `_data/` разошлись с `content/`, проверка падает со списком расхождений:
-исправьте `_data/` и повторите push.
+Workflow соберёт страницу и PDF и сверит их с `content/*.md`. Если в шаблоне
+что-то разошлось с источником, проверка падает со списком расхождений.
 
-Правила переноса текстов в `_data/`:
-
-- тексты и цифры переносятся из `content/` дословно: без сокращений, обобщений
-  и новых фактов; меняется только структура и оформление;
-- называется только JustAI; остальные модели — «российские модели» и «модели
-  в контуре компании»;
-- цены, ставки экспертов и себестоимость на сайт не переносятся;
-- размер группы — строго «20–25 человек», сеты — «по 4–5 человек».
+`brochure.pdf` лежит и в репозитории (`projects/ai-team-management-program/brochure.pdf`):
+при «Deploy from a branch» GitHub Pages публикует файлы из `main` как есть. Когда
+`content/` меняется, job `sync-pdf` в `pages.yml` коммитит свежий PDF в `main` и
+запускает сборку Pages. Актуальность определяется по хешу `ssot-sha256:` в
+метаданных PDF (Keywords): это хеш собранной `brochure.html`, `brochure.css`
+и `scripts/build-pdf.mjs`.
 
 ## Структура каталога
 
 ```text
 projects/ai-team-management-program/
   README.md                 # навигация (не публикуется)
-  index.html                # страница: подключает 8 разделов по порядку
-  _layouts/default.html     # каркас: шапка, навигация, подвал, подключение CSS/JS
-  _includes/                # по одному файлу на раздел страницы
-    hero.html               #   1. Лендинг-хук: цель и 4 счётчика
-    outcomes.html           #   2. Что получает руководитель
-    data-zones.html         #   3. Светофор данных
-    timeline.html           #   4. Интерактивный таймлайн, недели 0–11
-    evidence.html           #   5. Почему это работает
-    evaluation.html         #   6. Как мы измеряем результат (L1–L4)
-    team.html               #   7. Наша команда
-    budget.html             #   8. Запросить детальный бюджет
-  _data/
-    timeline.yml            # 12 недель: формат, а.ч., ведущий, темы, результат
-    team.yml                # роли и кандидаты, флаг consent
-    metrics.yml             # счётчики, факты и ссылки, уровни оценки L1–L4
-    program.yml             # заголовки, бизнес-цель, результаты, зоны данных
+  index.html                # веб-брошюра: 01, 02, 03 и форма
+  brochure.html             # страница для PDF: 01 → 02 → 05 → 03
+  brochure.pdf              # PDF-брошюра (генерируется, см. выше)
+  _layouts/default.html     # каркас веб-страницы: шапка, навигация, подвал
+  _includes/
+    hero.html               #   первый экран и ссылка на PDF
+    md-doc.html             #   вывод одного файла content/*.md на веб-странице
+    consent.html            #   фильтр согласия кандидатов (03, раздел [4])
+    budget.html             #   форма «Запросить бюджет»
+  _data/team.yml            # кандидаты на роли и флаг consent
   assets/
-    css/site.css            # стили: адаптив от 360 px, контраст WCAG AA
-    js/timeline.js          # раскрытие недель, фильтр «очно / онлайн»
-    js/zones.js             # переключатель зон «Светофора данных»
-    js/budget.js            # проверка формы и сборка письма mailto:
+    css/site.css            # стили веб-страницы: от 360 px, контраст WCAG AA
+    css/brochure.css        # стили печати: A4, поля 2 см, шрифты
+    js/budget.js            # сборка письма mailto: из полей формы
     favicon.svg
   content/                  # источники истины (не публикуются)
     01-project-summary.md
     02-project-passport.md
     03-appendix.md
+    05-detailed-economics.md
+  scripts/                  # генерация и проверка PDF (Node.js ≥ 22.13)
+    brochure-common.mjs     #   порядок файлов, разбор Markdown, правило согласия, хеш
+    build-pdf.mjs           #   brochure.html → brochure.pdf
+    check-pdf.mjs           #   сверка PDF с content/*.md
+    pdf-hash.mjs            #   хеш сборки / хеш в PDF
+  package.json              # puppeteer-core, pdf-lib, pdfjs-dist (не публикуется)
   tests/                    # проверки сборки (не публикуются)
-    check_site.py           # сверка страницы с content/*.md и ограничениями
-    test_check_site.py      # регрессия: каждое нарушение ловится проверкой
-    check_contrast.py       # контраст палитры по WCAG AA
-  docs/screenshots/         # снимки страницы для ревью (не публикуются)
+    check_site.py           #   сверка index.html и brochure.html с content/*.md
+    test_check_site.py      #   регрессия: каждое нарушение ловится проверкой
+    check_contrast.py       #   контраст палитры по WCAG AA
+  docs/screenshots/         # снимки страницы и PDF для ревью (не публикуются)
 ```
 
 Каталоги вне списка
@@ -74,93 +88,101 @@ projects/ai-team-management-program/
 
 | Каталог | Почему нужен |
 | --- | --- |
-| `_layouts/`, `_includes/`, `_data/`, `assets/` | Соглашения Jekyll: без них сборка не находит макеты, разделы и данные. Требование постановки. |
-| `content/` | Копии исходных артефактов (SSOT), с которыми сверяется сайт. Указан в постановке как место обновления контента. |
+| `_layouts/`, `_includes/`, `_data/`, `assets/` | Соглашения Jekyll: без них сборка не находит макеты, include-файлы и данные. |
+| `content/` | Копии исходных артефактов (SSOT), из которых строятся страница и PDF. |
+| `scripts/` | Генерация и проверка PDF — обязательный шаг workflow публикации. |
 | `tests/` | Проверки, которые запускает workflow до публикации. В `experiments/` их держать нельзя: это не эксперименты, а обязательный шаг публикации. |
 
 Файлы вне каталога проекта:
 
 - `.github/workflows/pages.yml` и `pages-check.yml` — GitHub Actions читает
   workflow только из `.github/workflows/` в корне репозитория. Оба workflow
-  срабатывают только на изменения этого каталога (`paths`) и не затрагивают
-  другие проекты портала.
+  срабатывают только на изменения этого каталога (`paths`).
 - `_config.yml` в корне — настройки сайта (`budget_email`, `includes_dir`,
-  `layouts_dir`, `data_dir`, исключения). Он в корне, потому что GitHub Pages
-  («Deploy from a branch: main, /») собирает репозиторий из корня и читает только
-  корневой `_config.yml`; материалы портала исключены из публикации.
-- `index.html` в корне — временный редирект на страницу программы.
+  `layouts_dir`, `data_dir`, исключения). GitHub Pages («Deploy from a branch:
+  main, /») собирает репозиторий из корня и читает только корневой `_config.yml`;
+  материалы портала исключены из публикации.
+- `index.html` в корне — редирект на страницу программы.
 - `_site/` в корне — временный результат сборки, в git не попадает.
 
-## Источники истины по разделам
+## Что проверяется
 
-| Раздел | Данные | Источник |
-| --- | --- | --- |
-| 1. Лендинг-хук | `program.yml`, `metrics.yml` → `counters` | 01: заголовок, «Бизнес-цель», «Почему так»; 02: «91 академический час», уровень 1 (KPI 1) |
-| 2. Что получает руководитель | `program.yml` → `outcomes` | 01: «Что получает руководитель» |
-| 3. Светофор данных | `program.yml` → `zones` | 02: уровень 2, «Классификация данных» |
-| 4. Таймлайн | `timeline.yml` | 02: уровень 3, «Модульная структура»; названия блоков — 01, «Программа» |
-| 5. Почему это работает | `metrics.yml` → `why`, `research`, `findings`, `stack` | 01: «Почему так»; 03: [1] и [3] |
-| 6. Как мы измеряем результат | `metrics.yml` → `evaluation` | 02: уровень 5 |
-| 7. Наша команда | `team.yml` | 01: «Команда»; 03: [4] |
-| 8. Запросить детальный бюджет | корневой `_config.yml` → `budget_email` | 02: «Размер группы» |
+`tests/check_site.py` (только стандартная библиотека Python 3):
 
-Число академических часов в счётчике и заголовке таймлайна не хранится отдельно:
-шаблон суммирует `hours` недель из `_data/timeline.yml`, проверка сверяет сумму
-со строкой «Итого» паспорта (91).
+- **Дословность.** Каждый заголовок, абзац, пункт списка и ячейка таблицы
+  `index.html` и `brochure.html` совпадает с блоком `content/*.md` (без учёта
+  разметки и переносов строк); все блоки источников присутствуют, в их порядке.
+  Текст вне таких блоков допускается только в шапке, подвале и форме.
+- **Структура.** Порядок разделов страницы; `brochure.html` — строго
+  01 → 02 → 05 → 03, уровни заголовков H1–H6, число таблиц и пунктов списков —
+  как в источнике.
+- **Первый экран.** H1 — из 01; ссылка «📥 Скачать PDF-брошюру программы» с
+  атрибутом `download` ведёт на `brochure.pdf` (с `--require-pdf` — файл существует).
+- **Форма.** Ровно пять полей, Размер группы — 20, 21, 22, 23, 24, 25; без чекбоксов.
+- **Регресс.** Нет текста прежнего портала (`open-ai.ru`, «портал») и служебных
+  пометок; цен на веб-странице; имён кандидатов без согласия; опубликованы только
+  `index.html`, `brochure.html`, `brochure.pdf` и `assets/` (никаких `.md`, данных,
+  скриптов и файлов прежних разделов).
+
+`scripts/check-pdf.mjs`:
+
+- каждая страница — A4, весь текст внутри полей 2 см;
+- закладки верхнего уровня — H1 файлов в порядке 01 → 02 → 05 → 03, каждый файл
+  начинается с новой страницы;
+- все блоки `content/*.md` есть в тексте PDF в порядке файлов;
+- шрифты встроены, кириллица извлекается без «�»;
+- имён кандидатов без согласия нет; хеш в метаданных совпадает со сборкой.
 
 ## Согласие кандидатов (`consent`)
 
-У каждого кандидата в `_data/team.yml` есть поле `consent`:
+`_data/team.yml` перечисляет кандидатов из `03-appendix.md`, раздел [4]:
 
-- `consent: false` — на сайте показываются только роль и требования к ней.
-  ФИО, компания, релевантный факт, метка GRA и ссылки на источники в HTML не
-  попадают (`_includes/team.html`, ветка `else`);
-- `consent: true` — карточка показывает ФИО, компанию, факт, метку GRA и
-  источники.
+- `consent: false` — абзац кандидата и строка «Источники:» с его именем не
+  выводятся ни на веб-странице, ни в PDF; легенда «Метка GRA:» скрыта, пока не
+  опубликован ни один кандидат. Остальной текст раздела выводится дословно;
+- `consent: true` — абзац кандидата выводится дословно.
 
 Ставить `consent: true` можно только после письменного согласия кандидата.
-`tests/check_site.py` проверяет, что при `consent: false` ФИО и факт кандидата
-отсутствуют в HTML страницы.
 
 ## Публикация: однократная настройка
 
-Обязательных шагов нет: сайт работает при обоих источниках Pages.
+Обязательных шагов нет: брошюра и PDF публикуются при обоих источниках Pages.
 
 - **Источник Pages.** При «Deploy from a branch» (текущая настройка) сайт
-  публикует штатная «pages build and deployment», а `pages.yml` только собирает
-  и проверяет. При «Source: GitHub Actions» публикует job `deploy` в `pages.yml`;
-  результат тот же, сборка из того же корневого `_config.yml`.
-- **`budget_email` в корневом `_config.yml`** — адрес, на который приходят
-  запросы детального бюджета. Пока поле пустое, кнопка формы отключена,
-  а проверки выдают предупреждение (публикацию не останавливают).
+  публикует штатная «pages build and deployment», `brochure.pdf` берётся из
+  репозитория (его обновляет job `sync-pdf`). Если `main` защищён от push
+  `github-actions[bot]`, job завершится ошибкой с подсказкой. Рекомендуемая
+  настройка — Settings → Pages → Source: **GitHub Actions**: тогда job `deploy`
+  публикует `_site` вместе с только что сгенерированным PDF, коммит не нужен.
+- **`budget_email` в корневом `_config.yml`** — адрес для запросов бюджета.
+  Пока поле пустое, письмо открывается без адресата, а проверки выдают
+  предупреждение (публикацию не останавливают).
 
 ## Локальная сборка и проверки
 
-Сборка тем же образом, что и в workflow (нужен Docker), из корня репозитория:
+Из корня репозитория (нужны Docker, Node.js ≥ 22.13, Chrome или Chromium, шрифты
+Liberation Sans или DejaVu Sans):
 
 ```sh
+# 1. Jekyll — тем же образом, что actions/jekyll-build-pages (или sh experiments/build-site.sh)
 docker run --rm -v "$PWD":/github/workspace -e GITHUB_WORKSPACE=/github/workspace \
   -e INPUT_SOURCE=. -e INPUT_DESTINATION=./_site \
   -e GITHUB_REPOSITORY=G-Ivan-A/open-ai.ru -e INPUT_TOKEN="$(gh auth token)" \
   ghcr.io/actions/jekyll-build-pages:v1.0.13
-```
+sudo chown -R "$(id -u):$(id -g)" _site
 
-Проверки (только стандартная библиотека Python 3):
+# 2. PDF и его проверка (CHROME_PATH — если Chrome не в PATH)
+cd projects/ai-team-management-program
+npm ci
+npm run pdf                       # → _site/projects/ai-team-management-program/brochure.pdf
+npm run check:pdf
+npm run pdf -- --out brochure.pdf # обновить копию в репозитории
+cd ../..
 
-```sh
+# 3. Проверки страницы
 python3 projects/ai-team-management-program/tests/check_contrast.py
 SITE_DIR=_site/projects/ai-team-management-program python3 -m unittest discover -s projects/ai-team-management-program/tests -p "test_*.py"
-python3 projects/ai-team-management-program/tests/check_site.py --site _site/projects/ai-team-management-program --allow-missing-email
+python3 projects/ai-team-management-program/tests/check_site.py --site _site/projects/ai-team-management-program --require-pdf --allow-missing-email
 ```
 
 Флаг `--allow-missing-email` нужен только до заполнения `budget_email`.
-
-## Поведение страницы
-
-- Без JavaScript все зоны и все недели раскрыты, форма отправляется через
-  `mailto:`. Скрипты добавляют переключатель зон, раскрытие недель по клику,
-  фильтр «очно / онлайн» и проверку формы.
-- Ссылка `#week-N` открывает нужную неделю таймлайна.
-- Кнопки управления доступны с клавиатуры (`aria-pressed`, `aria-expanded`),
-  изменения фильтров объявляются экранным чтецам (`role="status"`).
-- Анимации отключаются при `prefers-reduced-motion`.
