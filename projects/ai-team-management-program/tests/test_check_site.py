@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Регрессионные тесты проверки брошюры: собранная страница проходит проверку,
-а каждое намеренное нарушение требований issues #61 и #63 ловится.
+а каждое намеренное нарушение требований issues #61, #63 и #65 ловится.
 
     SITE_DIR=../../_site/projects/ai-team-management-program python3 -m unittest tests/test_check_site.py -v
 
@@ -21,7 +21,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_site  # noqa: E402
 
 SITE = Path(os.environ.get("SITE_DIR", check_site.REPO / "_site" / "projects" / "ai-team-management-program")).resolve()
-CANDS = check_site.candidates()
+TEAM = check_site.team()
+CANDS = TEAM["candidates"]
 
 
 class MarkdownHelpers(unittest.TestCase):
@@ -36,26 +37,103 @@ class MarkdownHelpers(unittest.TestCase):
             ("h3", "Подраздел"),
         ])
 
-    def test_consent_filter_hides_candidates_without_consent(self):
-        md = "## [4]\n\nВедущий эксперт 1: Иванов И. | факт\n\n**Куратор — штатная роль.**\n\n" \
-             "**Метка GRA:** ● — легенда\n\n**Источники:** Иванов И. — [сайт](https://example.org)"
-        cands = [{"slot": "Ведущий эксперт 1", "name": "Иванов И.", "consent": False}]
-        self.assertEqual(check_site.consent_filter(md, cands), "## [4]\n\n**Куратор — штатная роль.**")
-        cands[0]["consent"] = True
-        self.assertEqual(check_site.consent_filter(md, cands), md)
+    # --- Раздел [4] «Кандидаты на роли» и согласие (issues #57, #65) ---
+
+    TEAM = {
+        "roles": [{"id": "lead", "name": "Ведущий эксперт", "requirement": "5+ лет в ИИ"}],
+        "candidates": [{"role": "lead", "slot": "Ведущий эксперт 1", "consent": False, "name": "Иванов И.",
+                        "company": "Компания", "fact": "Факт о кандидате", "gra": "●",
+                        "sources": [{"label": "сайт", "url": "https://example.org"}]}],
+    }
+    MD = ("## [4]\n\nВедущий эксперт 1: Иванов И. | Компания | Факт о кандидате | Метка GRA: ●\n\n"
+          "**Куратор — штатная роль.**\n\n**Метка GRA:** ● — легенда\n\n"
+          "**Источники:** Иванов И. — [сайт](https://example.org).")
+
+    def test_team_filter_keeps_role_and_requirement_without_consent(self):
+        out = check_site.team_filter(self.MD, self.TEAM)
+        self.assertEqual(out, "## [4]\n\nВедущий эксперт 1 | Требование: 5+ лет в ИИ\n\n**Куратор — штатная роль.**")
+        for hidden in ("Иванов И.", "Компания", "Факт о кандидате", "Метка GRA", "example.org"):
+            self.assertNotIn(hidden, out)
+
+    def test_team_filter_shows_full_row_with_consent(self):
+        data = {**self.TEAM, "candidates": [{**self.TEAM["candidates"][0], "consent": True}]}
+        self.assertEqual(check_site.team_filter(self.MD, data), self.MD)
+
+    def test_team_filter_never_drops_role_rows(self):
+        md = (check_site.CONTENT / "03-appendix.md").read_text(encoding="utf-8")
+        data = check_site.team()
+        out = check_site.team_filter(md, data)
+        for c in data["candidates"]:
+            role = next(r for r in data["roles"] if r["id"] == c["role"])
+            self.assertIn(f'{c["slot"]} | Требование: {role["requirement"]}', out)
+            self.assertNotIn(c["name"], out)
+            self.assertNotIn(c["fact"], out)
+        self.assertIn("**Куратор — штатная роль Академии, внешний подбор кандидатов не требуется.**", out)
+
+    def test_all_consents_reproduce_appendix_verbatim(self):
+        md = (check_site.CONTENT / "03-appendix.md").read_text(encoding="utf-8")
+        data = check_site.team()
+        for c in data["candidates"]:
+            c["consent"] = True
+        norm = lambda t: [" ".join(p.split()) for p in t.strip().split("\n\n")]  # noqa: E731
+        self.assertEqual(norm(check_site.team_filter(md, data)), norm(md))
+
+    def test_partial_consent_publishes_only_consented_sources(self):
+        md = (check_site.CONTENT / "03-appendix.md").read_text(encoding="utf-8")
+        data = check_site.team()
+        first, rest = data["candidates"][0], data["candidates"][1:]
+        first["consent"] = True
+        out = check_site.team_filter(md, data).split("## [4]")[1]
+        self.assertIn(check_site.candidate_line(first), out)
+        self.assertIn(check_site.sources_line([first]), out)
+        self.assertIn("**Метка GRA:**", out)
+        for c in rest:
+            self.assertNotIn(c["name"], out)
+            self.assertNotIn(c["sources"][0]["url"], out)
+
+    def test_team_data_matches_ssot(self):
+        r = check_site.Report()
+        check_site.check_team_data(check_site.team(), r)
+        self.assertEqual(r.errors, [])
+
+    def test_team_data_drift_is_caught(self):
+        for key, value in (("fact", "Другой факт"), ("name", "Петров П."), ("company", "Другая"), ("gra", "◐")):
+            data = check_site.team()
+            data["candidates"][0][key] = value
+            r = check_site.Report()
+            check_site.check_team_data(data, r)
+            self.assertTrue(any("не совпадают" in e for e in r.errors), (key, r.errors))
+        data = check_site.team()
+        data["roles"][0]["requirement"] = "3+ года в ИИ"
+        r = check_site.Report()
+        check_site.check_team_data(data, r)
+        self.assertTrue(any("таблицей «Команда»" in e for e in r.errors), r.errors)
+        data = check_site.team()
+        del data["candidates"][3]
+        r = check_site.Report()
+        check_site.check_team_data(data, r)
+        self.assertTrue(any("строк кандидатов в [4]" in e for e in r.errors), r.errors)
+
+    def test_yaml_subset_parser(self):
+        text = '# комментарий\nroles:\n  - id: a\n    name: "Роль: одна"\nitems:\n  - x: true\n    list:\n' \
+               '      - label: "L"\n        url: "https://e.org"\n  - x: false\n'
+        self.assertEqual(check_site.parse_yaml(text), {
+            "roles": [{"id": "a", "name": "Роль: одна"}],
+            "items": [{"x": True, "list": [{"label": "L", "url": "https://e.org"}]}, {"x": False}],
+        })
 
     def test_all_candidates_are_unpublished_by_default(self):
-        self.assertTrue(CANDS)
-        self.assertTrue(all(not c["consent"] for c in CANDS))
+        self.assertEqual(len(CANDS), 4)
+        self.assertTrue(all(c["consent"] is False for c in CANDS))
 
     def test_web_page_skips_economics_only(self):
-        md = check_site.read_source("content/01-project-summary.md", CANDS, web=True)
+        md = check_site.read_source("content/01-project-summary.md", TEAM, web=True)
         self.assertNotIn("## Экономика", md)
         self.assertIn("## Почему так", md)
         self.assertIn("## Команда", md)
 
     def test_brochure_skips_why_section_only(self):
-        md = check_site.read_source("content/01-project-summary.md", CANDS)
+        md = check_site.read_source("content/01-project-summary.md", TEAM)
         self.assertNotIn("## Почему так", md)
         self.assertIn("## Экономика", md)
         self.assertIn("## Команда", md)
@@ -250,6 +328,16 @@ class BuiltSite(unittest.TestCase):
 
     def test_hidden_candidate_name_is_caught(self):
         self.assertCaught("без согласия", self.mutate(r"(<p><strong>Куратор)", rf"<p>{CANDS[0]['name']}</p>\1"))
+
+    def test_hidden_role_row_is_caught(self):
+        # consent: false — строку роли скрывать запрещено (issue #65).
+        self.assertCaught("роль скрывать нельзя", self.mutate(r"<p>Ведущий эксперт 1 \| Требование:[^<]*</p>", ""))
+        self.assertCaught("роль скрывать нельзя",
+                          brochure=self.sub(self.bhtml, r"<p>ИИ-архитектор 2 \| Требование:[^<]*</p>", ""))
+
+    def test_hidden_candidate_fact_is_caught(self):
+        self.assertCaught("факт кандидата без согласия",
+                          self.mutate(r"(<p><strong>Куратор)", rf"<p>{CANDS[1]['fact']}</p>\1"))
 
     def test_price_on_web_page_is_caught(self):
         self.assertCaught("коммерческие данные", self.mutate(r"(<h2 class=\"doc__part-title\">Бизнес-цель</h2>)",

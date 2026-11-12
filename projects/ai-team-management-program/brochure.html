@@ -20,7 +20,7 @@ layout: null
 {%- capture passport %}{% include_relative content/02-project-passport.md %}{% endcapture -%}
 {%- capture economics %}{% include_relative content/05-detailed-economics.md %}{% endcapture -%}
 {%- capture appendix %}{% include_relative content/03-appendix.md %}{% endcapture -%}
-{%- capture appendix %}{% include consent.html source=appendix %}{% endcapture -%}
+{%- capture appendix %}{% include team.html source=appendix %}{% endcapture -%}
 {%- assign summary_html = summary | markdownify -%}
 {%- assign passport_html = passport | markdownify -%}
 {%- assign economics_html = economics | markdownify -%}

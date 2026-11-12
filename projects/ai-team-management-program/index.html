@@ -12,7 +12,7 @@ layout: default
 {%- capture summary %}{% include_relative content/01-project-summary.md %}{% endcapture -%}
 {%- capture passport %}{% include_relative content/02-project-passport.md %}{% endcapture -%}
 {%- capture appendix %}{% include_relative content/03-appendix.md %}{% endcapture -%}
-{%- capture appendix %}{% include consent.html source=appendix %}{% endcapture -%}
+{%- capture appendix %}{% include team.html source=appendix %}{% endcapture -%}
 {% include hero.html source=summary %}
 {% include md-doc.html source=summary id="summary" heading="page" label="Резюме проекта" skip="Экономика" %}
 {% include md-doc.html source=passport id="passport" heading="section" %}
