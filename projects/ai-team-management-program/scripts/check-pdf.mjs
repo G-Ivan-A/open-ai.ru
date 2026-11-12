@@ -16,12 +16,15 @@
 //   4. Кириллица: шрифты встроены в PDF, текст извлекается без «�».
 //   5. Имена кандидатов без согласия (consent: false) в PDF отсутствуют.
 //   6. Хеш источников в метаданных совпадает со сборкой (если передан --site).
+//   7. Разделы из PDF_SKIP (раздел «Почему так» резюме) в PDF отсутствуют,
+//      сокращение «а.ч.» не встречается — только «ак.ч.» (issue #63).
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { PDFDocument, PDFDict, PDFName } from 'pdf-lib';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {
-  DEFAULT_SITE, HASH_PREFIX, ORDER, arg, candidates, mdBlocks, readSource, sourceHash, squash,
+  DEFAULT_SITE, HASH_PREFIX, OLD_HOURS, ORDER, arg, candidates, mdBlocks, readSource,
+  skippedSections, sourceHash, squash,
 } from './brochure-common.mjs';
 
 const A4 = { w: 595.28, h: 841.89 };
@@ -110,6 +113,21 @@ for (const c of candidates()) {
     fail(`имя кандидата без согласия в PDF: ${c.name}`);
   }
 }
+
+// --- Исключённые разделы и «а.ч.» ---
+for (const rel of ORDER) {
+  for (const sec of skippedSections(rel)) {
+    if (!sec.blocks.length) fail(`${rel}: в файле нет раздела «${sec.title}» из PDF_SKIP`);
+    for (const b of sec.blocks) {
+      if (b.kind === 'h2' && all.includes(squash(b.text))) fail(`${rel}: заголовок исключённого раздела «${b.text}» есть в PDF`);
+      if (b.kind !== 'h2' && b.text.length > 30 && all.includes(squash(b.text))) {
+        fail(`${rel}: текст исключённого раздела «${sec.title}» есть в PDF: «${b.text.slice(0, 60)}»`);
+      }
+    }
+  }
+}
+const oldHours = pages.findIndex((t) => OLD_HOURS.test(t));
+if (oldHours > -1) fail(`стр. ${oldHours + 1}: сокращение «а.ч.» вместо «ак.ч.»`);
 
 // --- Шрифты и метаданные (pdf-lib) ---
 const doc = await PDFDocument.load(data, { updateMetadata: false });

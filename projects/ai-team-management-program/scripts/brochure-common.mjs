@@ -64,10 +64,35 @@ export function consentFilter(markdown, cands = candidates()) {
   }).join('\n\n');
 }
 
-export function readSource(rel) {
+// Разделы H2, которые в PDF не выводятся (issue #63) — то же правило, что
+// в brochure.html (_includes/drop-sections.html) и tests/check_site.py (BROCHURE_SKIP).
+export const PDF_SKIP = {
+  'content/01-project-summary.md': ['Почему так'],
+};
+
+// Markdown без разделов H2 с заголовками из skip; остальной текст — дословно.
+export function dropSections(markdown, skip = []) {
+  if (!skip.length) return markdown;
+  const [head, ...parts] = markdown.split('\n## ');
+  return [head, ...parts.filter((p) => !skip.includes(p.split('\n')[0].trim()))].join('\n## ');
+}
+
+// Разделы, исключённые из PDF: [{ rel, title, blocks }] — для проверки, что их нет.
+export function skippedSections(rel) {
   const md = readFileSync(path.join(PROJECT, rel), 'utf8');
+  return (PDF_SKIP[rel] || []).map((title) => {
+    const part = md.split('\n## ').find((p) => p.split('\n')[0].trim() === title) ?? '';
+    return { rel, title, blocks: mdBlocks(`## ${part}`) };
+  });
+}
+
+export function readSource(rel) {
+  const md = dropSections(readFileSync(path.join(PROJECT, rel), 'utf8'), PDF_SKIP[rel]);
   return rel.endsWith('03-appendix.md') ? consentFilter(md) : md;
 }
+
+// «а.ч.» без «к»: в текстах используется только «ак.ч.» (issue #63).
+export const OLD_HOURS = /(?<![А-Яа-яЁё])[аА]\.ч\./;
 
 const inline = (s) => s
   .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')

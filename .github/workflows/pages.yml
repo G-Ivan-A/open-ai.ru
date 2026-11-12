@@ -81,12 +81,7 @@ jobs:
           grep -q 'url=projects/ai-team-management-program/' _site/index.html
           python3 "$PROJECT/tests/check_contrast.py"
           SITE_DIR="$SITE" python3 -m unittest discover -s "$PROJECT/tests" -p "test_*.py" -v
-          # budget_email заполняет владелец; пока он пуст, письмо открывается без адресата,
-          # а сборка выдаёт предупреждение (публикацию не останавливает).
-          python3 "$PROJECT/tests/check_site.py" --site "$SITE" --require-pdf --allow-missing-email
-          if grep -q 'data-email=""' "$SITE/index.html"; then
-            echo "::warning title=budget_email::Не указан budget_email в _config.yml (корень репозитория) — письмо из формы «Запросить бюджет» откроется без адресата."
-          fi
+          python3 "$PROJECT/tests/check_site.py" --site "$SITE" --require-pdf
 
       - name: Compare with committed brochure.pdf
         id: pdf

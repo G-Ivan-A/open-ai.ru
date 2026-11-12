@@ -17,7 +17,8 @@
 <section class="hero" id="top" aria-labelledby="hero-title">
   <div class="container hero__inner">
     <h1 class="hero__title" id="hero-title">{{ title | escape }}</h1>
-    <div class="hero__subtitle">{{ subtitle | markdownify }}</div>
+    {%- assign subtitle_html = subtitle | markdownify %}
+    <div class="hero__subtitle">{% include ext-links.html html=subtitle_html %}</div>
     <p class="hero__actions">
       <a class="button button--pdf" href="brochure.pdf" download data-pdf-link>📥 Скачать PDF-брошюру программы</a>
     </p>

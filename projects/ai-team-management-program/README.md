@@ -3,7 +3,9 @@
 Веб-страница и PDF-брошюра корпоративной программы «ИИ в работе с командой».
 Весь текст берётся дословно из файлов `content/*.md` (SSOT): без пересказа,
 сокращений и рекламных формулировок. Шаблоны меняют только оформление —
-раскрывающиеся блоки, таблицы, уровни заголовков на веб-странице.
+раскрывающиеся блоки, таблицы, уровни заголовков на веб-странице. Внешние
+ссылки открываются в новой вкладке (`target="_blank" rel="noopener noreferrer"`,
+`_includes/ext-links.html`).
 
 - Веб-страница: <https://g-ivan-a.github.io/open-ai.ru/projects/ai-team-management-program/>
   (корень <https://g-ivan-a.github.io/open-ai.ru/> перенаправляет сюда).
@@ -17,16 +19,17 @@
 
 | Файл | Содержание |
 | --- | --- |
-| `index.html` | Первый экран: H1 и строка под ним из `01-project-summary.md`, ссылка «📥 Скачать PDF-брошюру программы». Далее — «Резюме проекта» (01, без раздела «Экономика»), «Паспорт проекта» (02), «Приложение» (03) и форма «Запросить бюджет». |
-| `brochure.html` | Страница для печати: полный текст 01 → 02 → 05 → 03, у каждого файла свой H1, заголовки H1/H2/H3, списки и таблицы — как в `.md`. Источник PDF. |
+| `index.html` | Первый экран: H1 и строка под ним из `01-project-summary.md`, ссылка «📥 Скачать PDF-брошюру программы». Далее — «Резюме проекта» (01, без раздела «Экономика»), «Паспорт проекта» (02) и «Приложение» (03). Форм на странице нет. |
+| `brochure.html` | Страница для печати: текст 01 (без раздела «Почему так») → 02 → 05 → 03, у каждого файла свой H1, заголовки H1/H2/H3, списки и таблицы — как в `.md`. Источник PDF. |
 | `brochure.pdf` | brochure.html, напечатанная в A4 с полями 2 см; шрифты с кириллицей (Liberation Sans, DejaVu Sans) встроены. Закладки — по заголовкам. |
 
 Цены (`05-detailed-economics.md` и раздел «Экономика» из 01) на веб-странице не
-выводятся: они есть в PDF-брошюре и высылаются по запросу из формы.
+выводятся: они есть только в PDF-брошюре (расчёт — для группы 25 человек).
 
-Форма «Запросить бюджет» — ровно пять полей: Имя, Компания, Должность, E-mail,
-Размер группы (выпадающий список 20–25). Чекбоксов нет. Кнопка открывает письмо
-(`mailto:`) на адрес `budget_email` из корневого `_config.yml`.
+Раздел «Почему так» из `01-project-summary.md` выводится на веб-странице, но в
+PDF не входит: его убирает `_includes/drop-sections.html` в `brochure.html`
+(то же правило — `PDF_SKIP` в `scripts/brochure-common.mjs` и `BROCHURE_SKIP`
+в `tests/check_site.py`).
 
 ## Как обновить контент
 
@@ -49,7 +52,7 @@ Workflow соберёт страницу и PDF и сверит их с `content
 ```text
 projects/ai-team-management-program/
   README.md                 # навигация (не публикуется)
-  index.html                # веб-брошюра: 01, 02, 03 и форма
+  index.html                # веб-брошюра: 01, 02, 03
   brochure.html             # страница для PDF: 01 → 02 → 05 → 03
   brochure.pdf              # PDF-брошюра (генерируется, см. выше)
   _layouts/default.html     # каркас веб-страницы: шапка, навигация, подвал
@@ -57,12 +60,12 @@ projects/ai-team-management-program/
     hero.html               #   первый экран и ссылка на PDF
     md-doc.html             #   вывод одного файла content/*.md на веб-странице
     consent.html            #   фильтр согласия кандидатов (03, раздел [4])
-    budget.html             #   форма «Запросить бюджет»
+    drop-sections.html      #   разделы H2, которые не входят в PDF («Почему так»)
+    ext-links.html          #   target="_blank" rel="noopener noreferrer" у внешних ссылок
   _data/team.yml            # кандидаты на роли и флаг consent
   assets/
     css/site.css            # стили веб-страницы: от 360 px, контраст WCAG AA
     css/brochure.css        # стили печати: A4, поля 2 см, шрифты
-    js/budget.js            # сборка письма mailto: из полей формы
     favicon.svg
   content/                  # источники истины (не публикуются)
     01-project-summary.md
@@ -98,7 +101,7 @@ projects/ai-team-management-program/
 - `.github/workflows/pages.yml` и `pages-check.yml` — GitHub Actions читает
   workflow только из `.github/workflows/` в корне репозитория. Оба workflow
   срабатывают только на изменения этого каталога (`paths`).
-- `_config.yml` в корне — настройки сайта (`budget_email`, `includes_dir`,
+- `_config.yml` в корне — настройки сайта (`title`, `description`, `includes_dir`,
   `layouts_dir`, `data_dir`, исключения). GitHub Pages («Deploy from a branch:
   main, /») собирает репозиторий из корня и читает только корневой `_config.yml`;
   материалы портала исключены из публикации.
@@ -112,13 +115,18 @@ projects/ai-team-management-program/
 - **Дословность.** Каждый заголовок, абзац, пункт списка и ячейка таблицы
   `index.html` и `brochure.html` совпадает с блоком `content/*.md` (без учёта
   разметки и переносов строк); все блоки источников присутствуют, в их порядке.
-  Текст вне таких блоков допускается только в шапке, подвале и форме.
+  Текст вне таких блоков допускается только в шапке, подвале и на кнопке PDF.
 - **Структура.** Порядок разделов страницы; `brochure.html` — строго
   01 → 02 → 05 → 03, уровни заголовков H1–H6, число таблиц и пунктов списков —
   как в источнике.
 - **Первый экран.** H1 — из 01; ссылка «📥 Скачать PDF-брошюру программы» с
   атрибутом `download` ведёт на `brochure.pdf` (с `--require-pdf` — файл существует).
-- **Форма.** Ровно пять полей, Размер группы — 20, 21, 22, 23, 24, 25; без чекбоксов.
+- **Без формы.** На веб-странице нет `<form>`, полей ввода, `mailto:` и скриптов —
+  только кнопка «📥 Скачать PDF-брошюру программы».
+- **Ссылки.** Каждая внешняя ссылка `index.html` и `brochure.html` — с
+  `target="_blank"` и `rel="noopener noreferrer"`.
+- **Финальная версия.** Нет сокращения «а.ч.» (только «ак.ч.»), пометок о правках
+  («исправлено», «версия N», «было/стало»); раздела «Почему так» в `brochure.html` нет.
 - **Регресс.** Нет текста прежнего портала (`open-ai.ru`, «портал») и служебных
   пометок; цен на веб-странице; имён кандидатов без согласия; опубликованы только
   `index.html`, `brochure.html`, `brochure.pdf` и `assets/` (никаких `.md`, данных,
@@ -131,7 +139,8 @@ projects/ai-team-management-program/
   начинается с новой страницы;
 - все блоки `content/*.md` есть в тексте PDF в порядке файлов;
 - шрифты встроены, кириллица извлекается без «�»;
-- имён кандидатов без согласия нет; хеш в метаданных совпадает со сборкой.
+- имён кандидатов без согласия нет; хеш в метаданных совпадает со сборкой;
+- текста раздела «Почему так» и сокращения «а.ч.» в PDF нет.
 
 ## Согласие кандидатов (`consent`)
 
@@ -154,9 +163,6 @@ projects/ai-team-management-program/
   `github-actions[bot]`, job завершится ошибкой с подсказкой. Рекомендуемая
   настройка — Settings → Pages → Source: **GitHub Actions**: тогда job `deploy`
   публикует `_site` вместе с только что сгенерированным PDF, коммит не нужен.
-- **`budget_email` в корневом `_config.yml`** — адрес для запросов бюджета.
-  Пока поле пустое, письмо открывается без адресата, а проверки выдают
-  предупреждение (публикацию не останавливают).
 
 ## Локальная сборка и проверки
 
@@ -182,7 +188,5 @@ cd ../..
 # 3. Проверки страницы
 python3 projects/ai-team-management-program/tests/check_contrast.py
 SITE_DIR=_site/projects/ai-team-management-program python3 -m unittest discover -s projects/ai-team-management-program/tests -p "test_*.py"
-python3 projects/ai-team-management-program/tests/check_site.py --site _site/projects/ai-team-management-program --require-pdf --allow-missing-email
+python3 projects/ai-team-management-program/tests/check_site.py --site _site/projects/ai-team-management-program --require-pdf
 ```
-
-Флаг `--allow-missing-email` нужен только до заполнения `budget_email`.

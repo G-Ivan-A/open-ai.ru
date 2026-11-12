@@ -301,53 +301,6 @@ details.doc__part > .doc__body {
   font-weight: 700;
 }
 
-/* Форма «Запросить бюджет» */
-
-.section--budget {
-  background: var(--tint);
-}
-
-.budget {
-  padding-top: 2rem;
-  padding-bottom: 2.5rem;
-}
-
-.section__title {
-  margin: 0 0 1.25rem;
-  font-size: 1.5rem;
-}
-
-.budget__form {
-  display: grid;
-  gap: 1rem;
-  max-width: 32rem;
-}
-
-.field {
-  display: grid;
-  gap: 0.3rem;
-}
-
-.field label {
-  font-weight: 700;
-}
-
-.field input,
-.field select {
-  width: 100%;
-  min-height: 2.75rem;
-  padding: 0.5rem 0.65rem;
-  border: 1px solid var(--line-strong);
-  border-radius: 2px;
-  background: var(--bg);
-  color: var(--ink);
-  font: inherit;
-}
-
-.budget__form .button {
-  justify-self: start;
-}
-
 /* Подвал */
 
 .site-footer {
@@ -367,8 +320,7 @@ details.doc__part > .doc__body {
 
 @media print {
   .site-header,
-  .hero__actions,
-  .section--budget {
+  .hero__actions {
     display: none;
   }
 

@@ -1,0 +1,6 @@
+{%- comment -%}
+  Внешние ссылки открываются в новой вкладке: kramdown выводит [текст](https://…)
+  как <a href="https://…">; шаблон добавляет target="_blank" rel="noopener noreferrer".
+  Параметр: include.html — HTML после markdownify.
+{%- endcomment -%}
+{{- include.html | replace: '<a href="http', '<a target="_blank" rel="noopener noreferrer" href="http' -}}
