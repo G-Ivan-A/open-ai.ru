@@ -9,16 +9,12 @@
 # candidates — кандидаты в порядке [4]:
 #   role    — id роли из roles;
 #   slot    — название позиции, как в начале абзаца [4] («Ведущий эксперт 1»);
-#   consent — письменное согласие кандидата на публикацию;
 #   name, company, fact, gra — ФИО, компания, релевантный факт, метка GRA;
 #   sources — ссылки на первоисточники (строка «Источники:» в [4]).
 #
-# Правило согласия (_includes/team.html; то же — scripts/brochure-common.mjs, tests/check_site.py):
-#   consent: false — строка роли НЕ скрывается: выводится «<slot> | Требование: <требование роли>»;
-#                    ФИО, компания, факт, метка GRA и ссылки на источники кандидата не выводятся.
-#   consent: true  — выводится полная строка кандидата из [4] и его источники.
-#   Легенда «Метка GRA» выводится, если опубликован хотя бы один кандидат.
-# Поменять consent на true можно только после письменного согласия кандидата.
+# Вывод (issue #65, комментарий к PR #66): в PDF раздел [4] — полностью, дословно, со ссылками
+# (content/03-appendix.md как есть); на веб-странице — только «[4] Кандидаты на роли — смотри PDF»
+# (_includes/team.html). Эти данные — для сверки [4] с SSOT и проверки PDF (scripts/check-pdf.mjs).
 
 roles:
   - id: lead-expert
@@ -38,7 +34,6 @@ roles:
 candidates:
   - role: lead-expert
     slot: "Ведущий эксперт 1"
-    consent: false
     name: "Викулин В."
     company: "Т-Банк"
     fact: "Автор и преподаватель программы ЦНО ФКН ВШЭ «Генеративный ИИ для руководителей» (18 ак.ч.); 10 лет создаёт и внедряет ИИ-системы, руководит внедрением ИИ-агентов"
@@ -50,7 +45,6 @@ candidates:
         url: "https://vikulin.ai"
   - role: lead-expert
     slot: "Ведущий эксперт 2"
-    consent: false
     name: "Соколов Е.А."
     company: "НИУ ВШЭ"
     fact: "Руководитель департамента больших данных и информационного поиска ФКН; автор и руководитель программы «ИИ-лидеры» для руководителей: 6 модулей по 3 дня"
@@ -62,7 +56,6 @@ candidates:
         url: "https://www.hse.ru/news/priority/1109548984.html"
   - role: ai-architect
     slot: "ИИ-архитектор 1"
-    consent: false
     name: "Мишнев Н."
     company: "Just AI"
     fact: "Руководит разработкой GenAI-решений умного поиска; создатель Jay Knowledge Hub на RAG; доклад на Conversations о подготовке данных для RAG"
@@ -74,7 +67,6 @@ candidates:
         url: "https://habr.com/ru/companies/just_ai/news/911558"
   - role: ai-architect
     slot: "ИИ-архитектор 2"
-    consent: false
     name: "Малышев А."
     company: "Just AI"
     fact: "Руководитель продукта JustAI Agent Platform: no-code агенты и мультиагентные сценарии"

@@ -1,0 +1,15 @@
+{%- comment -%}
+  Раздел [4] «Кандидаты на роли» для brochure.html / brochure.pdf (issue #65):
+  текст 03-appendix.md выводится полностью, слово в слово, со ссылками на источники.
+  Единственное преобразование — разметка, не текст: в строках кандидатов
+  («… | Метка GRA: …») знак «|» экранируется («\|»), иначе kramdown превращает
+  абзац в таблицу; в PDF выводится обычный «|».
+{%- endcomment -%}
+{%- assign paras = include.source | split: "
+
+" -%}
+{%- for p in paras -%}
+  {%- assign out = p -%}
+  {%- if p contains " | Метка GRA: " -%}{%- assign out = p | replace: " | ", " \| " -%}{%- endif %}
+{{ out }}
+{% endfor -%}

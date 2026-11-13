@@ -14,8 +14,8 @@
 //   3. Дословность: каждый заголовок, абзац, пункт списка и ячейка таблицы
 //      из content/*.md есть в тексте PDF в порядке файла (без учёта переносов строк).
 //   4. Кириллица: шрифты встроены в PDF, текст извлекается без «�».
-//   5. Кандидаты без согласия (consent: false): строка роли с требованием есть
-//      (входит в п. 3), а ФИО и релевантный факт в PDF отсутствуют (issue #65).
+//   5. Раздел [4] «Кандидаты на роли» — полностью (входит в п. 3): ФИО и факт каждого
+//      кандидата есть в тексте, ссылки на источники — кликабельные гиперссылки (issue #65).
 //   6. Хеш источников в метаданных совпадает со сборкой (если передан --site).
 //   7. Разделы из PDF_SKIP (раздел «Почему так» резюме) в PDF отсутствуют,
 //      сокращение «а.ч.» не встречается — только «ак.ч.» (issue #63).
@@ -46,6 +46,7 @@ const data = new Uint8Array(readFileSync(pdfPath));
 // --- Текст и геометрия (pdf.js) ---
 const pdf = await getDocument({ data: data.slice(), useSystemFonts: false, verbosity: 0 }).promise;
 const pages = [];
+const uris = new Set(); // гиперссылки (аннотации Link с URI) всех страниц
 for (let n = 1; n <= pdf.numPages; n += 1) {
   const page = await pdf.getPage(n);
   const [x0, y0, x1, y1] = page.view;
@@ -54,6 +55,7 @@ for (let n = 1; n <= pdf.numPages; n += 1) {
   if (Math.abs(w - A4.w) > TOL || Math.abs(h - A4.h) > TOL) {
     fail(`стр. ${n}: размер ${w.toFixed(2)}×${h.toFixed(2)} pt, ожидается A4 ${A4.w}×${A4.h}`);
   }
+  for (const a of await page.getAnnotations()) if (a.url) uris.add(new URL(a.url).href);
   const { items } = await page.getTextContent();
   let text = '';
   for (const it of items) {
@@ -108,12 +110,11 @@ for (const rel of ORDER) {
   console.log(`${rel}: ${blocks.length} блоков, не найдено ${missing}`);
 }
 
-// --- Согласие кандидатов ---
+// --- Раздел [4]: кандидаты и гиперссылки на источники ---
 for (const c of candidates()) {
-  if (c.consent === true) continue;
-  if (c.name && all.includes(squash(c.name))) fail(`имя кандидата без согласия в PDF: ${c.name}`);
-  if (c.fact && all.includes(squash(c.fact))) fail(`факт кандидата без согласия в PDF: ${c.slot}`);
-  if (!all.includes(squash(c.slot))) fail(`в PDF нет строки роли «${c.slot}» (consent: false — роль и требование выводятся)`);
+  if (!all.includes(squash(c.name))) fail(`в PDF нет кандидата ${c.slot}: ${c.name}`);
+  if (!all.includes(squash(c.fact))) fail(`в PDF нет факта кандидата ${c.slot}`);
+  for (const s of c.sources) if (!uris.has(new URL(s.url).href)) fail(`в PDF нет гиперссылки «${s.label}» → ${s.url}`);
 }
 
 // --- Исключённые разделы и «а.ч.» ---

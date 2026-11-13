@@ -297,14 +297,8 @@ def candidates(team_yml: Path = TEAM_YML) -> list[dict]:
 
 
 def candidate_line(c: dict) -> str:
-    """Полная строка кандидата [4] (consent: true) — как в _includes/team.html."""
+    """Строка кандидата раздела [4] — как в 03-appendix.md."""
     return f'{c["slot"]}: {c["name"]} | {c["company"]} | {c["fact"]} | Метка GRA: {c["gra"]}'
-
-
-def role_line(c: dict, roles: list[dict]) -> str:
-    """Строка роли без данных кандидата (consent: false): роль и требование к ней."""
-    role = next((r for r in roles if r.get("id") == c.get("role")), {})
-    return f'{c["slot"]} | Требование: {role.get("requirement")}'
 
 
 def sources_line(cands: list[dict]) -> str:
@@ -312,24 +306,15 @@ def sources_line(cands: list[dict]) -> str:
         f'{c["name"]} —' + ",".join(f' [{s["label"]}]({s["url"]})' for s in c["sources"]) for c in cands) + "."
 
 
-def team_filter(markdown: str, data: dict) -> str:
-    """То же правило, что _includes/team.html: consent: false — строка роли с требованием
-    (ФИО, компания, факт и источники скрыты), consent: true — полная строка кандидата."""
-    cands = data.get("candidates") or []
-    shown = [c for c in cands if c.get("consent") is True]
-    out = []
-    for p in markdown.split("\n\n"):
-        line: str | None = p
-        for c in cands:
-            if p.startswith(f'{c["slot"]}: '):
-                line = candidate_line(c) if c.get("consent") is True else role_line(c, data.get("roles") or [])
-            if p.startswith("**Источники:**") and c["name"] in p:
-                line = sources_line(shown) if shown else None
-        if p.startswith("**Метка GRA:**") and not shown:
-            line = None
-        if line is not None:
-            out.append(line)
-    return "\n\n".join(out)
+TEAM_HEADING = "## [4] Кандидаты на роли"
+TEAM_WEB_STUB = "Смотри [PDF](brochure.pdf)."
+
+
+def web_appendix(markdown: str) -> str:
+    """То же правило, что _includes/team.html (issue #65): на веб-странице текст раздела [4]
+    (последний раздел 03-appendix.md) заменён абзацем «Смотри PDF.»; в PDF — полностью."""
+    head = markdown.split(f"\n{TEAM_HEADING}\n")[0]
+    return f"{head}\n{TEAM_HEADING}\n\n{TEAM_WEB_STUB}\n"
 
 
 def check_team_data(data: dict, r: Report):
@@ -356,7 +341,6 @@ def check_team_data(data: dict, r: Report):
         role = next((x for x in roles if x.get("id") == c.get("role")), None)
         r.check(c.get("role") in ids and role is not None and slot.startswith(role["name"] + " "),
                 f"_data/team.yml: у кандидата «{slot}» неверная роль «{c.get('role')}»")
-        r.check(isinstance(c.get("consent"), bool), f"_data/team.yml: у кандидата «{slot}» consent должен быть true или false")
         r.check(all(c.get(k) for k in ("name", "company", "fact", "gra", "sources")),
                 f"_data/team.yml: у кандидата «{slot}» нет name, company, fact, gra или sources")
         if all(c.get(k) for k in ("name", "company", "fact", "gra")):
@@ -375,8 +359,8 @@ def drop_sections(markdown: str, titles: list[str]) -> str:
 
 def read_source(rel: str, data: dict, web: bool = False) -> str:
     md = (PROJECT / rel).read_text(encoding="utf-8")
-    if rel.endswith("03-appendix.md"):
-        md = team_filter(md, data)
+    if web and rel.endswith("03-appendix.md"):
+        md = web_appendix(md)
     skip = WEB_SKIP if web else BROCHURE_SKIP
     if rel in skip:
         md = drop_sections(md, skip[rel])
@@ -635,6 +619,7 @@ def check_brochure(doc: Node, data: dict, r: Report, title: str):
 
 
 def check_rules(name: str, source: str, doc: Node, data: dict, r: Report, money: bool):
+    web_page = money  # index.html — веб-страница, brochure.html — источник PDF
     visible = re.sub(r"\s+", " ", doc.text())
     if money:
         for pattern, label in FORBIDDEN_MONEY:
@@ -648,12 +633,17 @@ def check_rules(name: str, source: str, doc: Node, data: dict, r: Report, money:
             if hit else "")
     check_links(name, doc, r)
     for c in data.get("candidates") or []:
-        if c.get("consent") is True:
-            continue
-        r.check(c["name"] not in source, f"{name}: имя кандидата без согласия «{c['name']}» (consent: false)")
-        r.check(squash(c["fact"]) not in squash(visible), f"{name}: факт кандидата без согласия «{c['slot']}» (consent: false)")
-        r.check(squash(role_line(c, data.get("roles") or [])) in squash(visible),
-                f"{name}: нет строки роли «{c['slot']}» с требованием — при consent: false роль скрывать нельзя")
+        if web_page:
+            r.check(c["name"] not in source and squash(c["fact"]) not in squash(visible),
+                    f"{name}: кандидат «{c['slot']}» на веб-странице — раздел [4] только в PDF (issue #65)")
+        else:
+            r.check(squash(candidate_line(c)) in squash(visible),
+                    f"{name}: нет строки кандидата «{c['slot']}» из [4] — в PDF раздел выводится полностью")
+            for s in c["sources"]:
+                r.check(f'href="{s["url"]}"' in source, f"{name}: нет гиперссылки «{s['label']}» кандидата «{c['slot']}»")
+    if web_page:
+        r.check(squash("[4] Кандидаты на роли Смотри PDF.") in squash(visible),
+                f"{name}: нет «[4] Кандидаты на роли — смотри PDF» (issue #65)")
 
 
 def check_site_files(site: Path, r: Report, require_pdf: bool):
