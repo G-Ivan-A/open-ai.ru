@@ -1,6 +1,6 @@
 import { chromium } from 'playwright-core';
 import { serve } from '../../scripts/static-server.mjs';
-const srv = await serve({ root: '/tmp/gh-issue-solver-1795817183861/_site', base: '/open-ai.ru/' });
+const srv = await serve({ root: process.argv[2] ?? '_site', base: '/open-ai.ru/' });
 const b = await chromium.launch({ channel: 'chrome' });
 const ctx = await b.newContext(); await ctx.grantPermissions(['clipboard-read','clipboard-write'],{origin:srv.url});
 const p = await ctx.newPage();
