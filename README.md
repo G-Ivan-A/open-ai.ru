@@ -83,7 +83,7 @@ Phase 0: Planning & Vision
 2. **Источник Pages.** Settings → Pages → Build and deployment → Source:
    **GitHub Actions** (вместо «Deploy from a branch»). Пока источник — ветка, workflow
    не публикует и сообщает об этом ошибкой.
-3. **Публикация.** Слияние в `main` или Actions → «Pages» → Run workflow.
+3. **Публикация.** Слияние в `main` или Actions → «Pages — open-ai.ru» → Run workflow.
    После публикации workflow сверяет `mango/deploy.json` с ожидаемыми версией и
    коммитом и проверяет коды ответа основных адресов.
 
