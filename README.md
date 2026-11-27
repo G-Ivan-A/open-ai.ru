@@ -28,9 +28,17 @@ Phase 0: Planning & Vision
 
 ## Проекты
 
+Сайт <https://g-ivan-a.github.io/open-ai.ru/> открывается стартовой страницей
+([hub/](hub/)) с двумя входами:
+
 - [projects/ai-team-management-program/](projects/ai-team-management-program/README.md) —
   цифровая брошюра корпоративной программы «ИИ в работе с командой»
-  (Jekyll, GitHub Pages) и её PDF-версия `brochure.pdf`.
+  (сборка на Node) и её PDF-версия `brochure.pdf`.
+- [projects/mango-bcreq/](projects/mango-bcreq/README.md) — витрина BCREQ (mango):
+  промпты и стандарты подготовки спецификации бизнес-требований. Мастер — приватный
+  репозиторий `G-Ivan-A/mango_ba_prompts`; витрина публикуется в изолированном
+  разделе `/mango/` на зафиксированном коммите, страница описания —
+  `/projects/mango-bcreq/`.
 
 ## Governance
 
@@ -47,13 +55,52 @@ Phase 0: Planning & Vision
 
 - `.gitignore` — базовый Node.js/Next.js ignore-list.
 - `src/.gitkeep` — placeholder для будущего кода.
-- `.github/workflows/pages.yml` — сборка брошюры
-  `projects/ai-team-management-program/`, генерация `brochure.pdf` (Puppeteer)
-  и публикация на GitHub Pages при push в `main`;
-  `.github/workflows/pages-check.yml` — те же сборка и проверки в pull request.
-- `_config.yml` и `index.html` в корне — сборка GitHub Pages: публикуется только
-  сайт программы, корень <https://g-ivan-a.github.io/open-ai.ru/> временно
-  перенаправляет на <https://g-ivan-a.github.io/open-ai.ru/projects/ai-team-management-program/>.
+- `package.json`, `scripts/` — сборка и проверка сайта (Node, без Jekyll):
+  - `build-site.mjs` — собирает `_site/`: стартовая страница, `404.html`, брошюра,
+    витрина в `mango/` и страница «О витрине»;
+  - `check-site.mjs` — ссылки, изоляция разделов, приватность, кэш-параметры ресурсов;
+  - `check-mango.mjs` — витрина в браузере: эталонный `site/` спицы и развёрнутая
+    копия должны вести себя одинаково;
+  - `run-spoke-scenarios.mjs` — Playwright-сценарии самой спицы на развёрнутой витрине;
+  - `static-server.mjs` — локальный сервер с поведением GitHub Pages (`404.html`).
+- `tests/` — `npm test`: конвейер витрины на публичной тестовой витрине, проверка
+  доступа (ГК-2), стартовая страница и `404.html` в браузере.
+- `.github/workflows/pages.yml` — единый workflow для pull request и `main`:
+  проверка доступа к спице, загрузка `site/` по токену, сборка, `brochure.pdf`
+  (Puppeteer), все проверки и, для `main`, публикация на GitHub Pages с проверкой
+  опубликованной версии. В pull request без доступа к секрету сборка и проверки идут на
+  тестовой витрине, публикации нет.
+
+## Публикация сайта: однократная настройка
+
+Владелец репозитория выполняет один раз, по порядку:
+
+1. **Секрет `MANGO_SITE_TOKEN`.** Fine-grained personal access token: Resource owner —
+   `G-Ivan-A`, Repository access — только `mango_ba_prompts`, Permissions — Contents:
+   Read-only. Добавить в Settings → Secrets and variables → Actions → New repository
+   secret. Без секрета или с отозванным токеном сборка `main` останавливается с причиной
+   (ГК-2), ничего не публикуется.
+2. **Источник Pages.** Settings → Pages → Build and deployment → Source:
+   **GitHub Actions** (вместо «Deploy from a branch»). Пока источник — ветка, workflow
+   не публикует и сообщает об этом ошибкой.
+3. **Публикация.** Слияние в `main` или Actions → «Pages» → Run workflow.
+   После публикации workflow сверяет `mango/deploy.json` с ожидаемыми версией и
+   коммитом и проверяет коды ответа основных адресов.
+
+Срок действия токена ограничен: перед истечением выпустить новый и заменить значение
+секрета. Обновление версии витрины — см. [projects/mango-bcreq/README.md](projects/mango-bcreq/README.md#переход-на-новую-версию-спицы).
+
+### Локально
+
+```sh
+npm ci
+npm run build -- --mango-source <путь к site/ спицы> --base-path /open-ai.ru/
+npm run check -- --site _site --base /open-ai.ru/
+npm test
+npm run serve -- --base /open-ai.ru/   # http://127.0.0.1:8137/open-ai.ru/
+```
+
+Брошюре нужны свои зависимости: `cd projects/ai-team-management-program && npm ci`.
 
 ---
 **Версия:** 0.1  
