@@ -43,3 +43,5 @@ coverage/
 
 # Local CI/debug artifacts
 ci-logs/
+.spoke/
+reports/
