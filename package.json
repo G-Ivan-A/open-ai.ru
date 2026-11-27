@@ -9,7 +9,7 @@
   "scripts": {
     "build": "node scripts/build-site.mjs",
     "check": "node scripts/check-site.mjs",
-    "test": "node --test --test-timeout=120000 tests/",
+    "test": "node --test --test-timeout=120000 \"tests/**/*.test.mjs\"",
     "serve": "node scripts/static-server.mjs --root _site"
   },
   "devDependencies": {
