@@ -11,6 +11,7 @@
     "check:pdf": "node scripts/check-pdf.mjs"
   },
   "devDependencies": {
+    "markdown-it": "15.0.3",
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "6.5.438",
     "puppeteer-core": "25.17.0"

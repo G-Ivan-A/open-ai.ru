@@ -282,6 +282,16 @@ class BuiltSite(unittest.TestCase):
         errs = check_site.run(self.site, require_pdf=True).errors
         self.assertTrue(any("ссылка на PDF ведёт" in e for e in errs), errs)
 
+    # --- Выход на стартовую страницу сайта (issue #68, ФТ-3/ГК-1) ---
+
+    def test_home_link_is_required(self):
+        self.assertCaught("выход на стартовую страницу",
+                          self.mutate(r'\s*<p><a class="site-footer__home" href="\.\./\.\./">Все проекты</a></p>', ""))
+
+    def test_home_link_must_stay_relative(self):
+        self.assertCaught("выход на стартовую страницу",
+                          self.mutate(r'href="\.\./\.\./"', 'href="https://g-ivan-a.github.io/open-ai.ru/"'))
+
     def test_hero_title_is_verbatim(self):
         self.assertCaught("заголовок первого экрана", self.mutate(r"(<h1[^>]*>)«ИИ", r"\1Программа «ИИ"))
 

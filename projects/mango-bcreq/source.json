@@ -1,0 +1,17 @@
+{
+  "repository": "G-Ivan-A/mango_ba_prompts",
+  "commit": "c2d1b7bd079970a0f9a0f9ede2211abb113dfc2d",
+  "path": "site",
+  "version": "2.9.6",
+  "tree": {
+    "sha256": "74b6222fc16a6d5bfa28fe1b92e5e6107388d78b07fcc260792bbeff333b9198",
+    "files": 109
+  },
+  "scenarios": {
+    "path": "experiments/issue_500",
+    "runs": [
+      { "file": "browser-smoke.js", "before": "e89a6dea73ddeb27aa824cc2ca8c64fcf4d5ef3c" },
+      { "file": "route-browser.js", "before": "6fd001333f7085e93ebaddebf2fc459c7e5571ea" }
+    ]
+  }
+}

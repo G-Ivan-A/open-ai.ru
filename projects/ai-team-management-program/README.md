@@ -5,15 +5,16 @@
 сокращений и рекламных формулировок. Шаблоны меняют только оформление —
 раскрывающиеся блоки, таблицы, уровни заголовков на веб-странице. Внешние
 ссылки открываются в новой вкладке (`target="_blank" rel="noopener noreferrer"`,
-`_includes/ext-links.html`).
+`extLinks` в `scripts/render.mjs`).
 
 - Веб-страница: <https://g-ivan-a.github.io/open-ai.ru/projects/ai-team-management-program/>
-  (корень <https://g-ivan-a.github.io/open-ai.ru/> перенаправляет сюда).
+  (корень <https://g-ivan-a.github.io/open-ai.ru/> — стартовая страница сайта со всеми
+  проектами; старые закладки корня с якорем, например `/#passport`, ведут сюда).
 - PDF: <https://g-ivan-a.github.io/open-ai.ru/projects/ai-team-management-program/brochure.pdf>.
-- Движок: Jekyll без внешних тем (`actions/jekyll-build-pages`, gem `github-pages`);
-  PDF — Puppeteer (системный Chrome).
-- Публикация: [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml),
-  проверка в pull request: [`.github/workflows/pages-check.yml`](../../.github/workflows/pages-check.yml).
+- Сборка: Node.js — `scripts/build-site.mjs` (Markdown → HTML: markdown-it с правилами
+  прежнего kramdown), без Jekyll; PDF — Puppeteer (системный Chrome).
+- Публикация и проверка в pull request: [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml)
+  собирает весь сайт (`scripts/build-site.mjs` в корне репозитория), брошюра — его часть.
 
 ## Что публикуется
 
@@ -27,8 +28,8 @@
 выводятся: они есть только в PDF-брошюре (расчёт — для группы 25 человек).
 
 Раздел «Почему так» из `01-project-summary.md` выводится на веб-странице, но в
-PDF не входит: его убирает `_includes/drop-sections.html` в `brochure.html`
-(то же правило — `PDF_SKIP` в `scripts/brochure-common.mjs` и `BROCHURE_SKIP`
+PDF не входит: его убирает `dropSections` при сборке `brochure.html`
+(правило `PDF_SKIP` в `scripts/brochure-common.mjs`; то же — `BROCHURE_SKIP`
 в `tests/check_site.py`).
 
 ## Как обновить контент
@@ -40,30 +41,21 @@ PDF не входит: его убирает `_includes/drop-sections.html` в `
 Workflow соберёт страницу и PDF и сверит их с `content/*.md`. Если в шаблоне
 что-то разошлось с источником, проверка падает со списком расхождений.
 
-`brochure.pdf` лежит и в репозитории (`projects/ai-team-management-program/brochure.pdf`):
-при «Deploy from a branch» GitHub Pages публикует файлы из `main` как есть. Когда
-`content/` меняется, job `sync-pdf` в `pages.yml` коммитит свежий PDF в `main` и
-запускает сборку Pages. Актуальность определяется по хешу `ssot-sha256:` в
-метаданных PDF (Keywords): это хеш собранной `brochure.html`, `brochure.css`
-и `scripts/build-pdf.mjs`.
+`brochure.pdf` лежит и в репозитории (`projects/ai-team-management-program/brochure.pdf`).
+Если он соответствует `content/*.md`, workflow публикует его как есть (повторная
+публикация побайтово та же); если нет — печатает PDF заново из сборки, публикует его и
+предупреждает, что копию в репозитории пора обновить (команда — в тексте предупреждения).
+Актуальность определяется по хешу `ssot-sha256:` в метаданных PDF (Keywords): это хеш
+собранной `brochure.html`, `brochure.css` и `scripts/build-pdf.mjs`.
 
 ## Структура каталога
 
 ```text
 projects/ai-team-management-program/
   README.md                 # навигация (не публикуется)
-  index.html                # веб-брошюра: 01, 02, 03
-  brochure.html             # страница для PDF: 01 → 02 → 05 → 03
+  site.json                 # заголовок, описание и язык страниц
   brochure.pdf              # PDF-брошюра (генерируется, см. выше)
-  _layouts/default.html     # каркас веб-страницы: шапка, навигация, подвал
-  _includes/
-    hero.html               #   первый экран и ссылка на PDF
-    md-doc.html             #   вывод одного файла content/*.md на веб-странице
-    team.html               #   веб: раздел [4] «Кандидаты на роли» → «Смотри PDF.»
-    team-pdf.html           #   PDF: раздел [4] полностью, «|» в строках кандидатов экранируется
-    drop-sections.html      #   разделы H2, которые не входят в PDF («Почему так»)
-    ext-links.html          #   target="_blank" rel="noopener noreferrer" у внешних ссылок
-  _data/team.yml            # роли и требования (01), кандидаты [4] (03) — для сверки с SSOT
+  data/team.yml             # роли и требования (01), кандидаты [4] (03) — для сверки с SSOT
   assets/
     css/site.css            # стили веб-страницы: от 360 px, контраст WCAG AA
     css/brochure.css        # стили печати: A4, поля 2 см, шрифты
@@ -73,12 +65,14 @@ projects/ai-team-management-program/
     02-project-passport.md
     03-appendix.md
     05-detailed-economics.md
-  scripts/                  # генерация и проверка PDF (Node.js ≥ 22.13)
+  scripts/                  # сборка страниц, генерация и проверка PDF (Node.js ≥ 22.13)
+    build-site.mjs          #   index.html (веб-брошюра: 01, 02, 03) и brochure.html (01 → 02 → 05 → 03)
+    render.mjs              #   шаблоны: каркас, первый экран, раздел [4] на сайте и в PDF, внешние ссылки
     brochure-common.mjs     #   порядок файлов, разбор Markdown, PDF_SKIP, хеш
     build-pdf.mjs           #   brochure.html → brochure.pdf
     check-pdf.mjs           #   сверка PDF с content/*.md
     pdf-hash.mjs            #   хеш сборки / хеш в PDF
-  package.json              # puppeteer-core, pdf-lib, pdfjs-dist (не публикуется)
+  package.json              # markdown-it, puppeteer-core, pdf-lib, pdfjs-dist (не публикуется)
   tests/                    # проверки сборки (не публикуются)
     check_site.py           #   сверка index.html и brochure.html с content/*.md
     test_check_site.py      #   регрессия: каждое нарушение ловится проверкой
@@ -92,21 +86,17 @@ projects/ai-team-management-program/
 
 | Каталог | Почему нужен |
 | --- | --- |
-| `_layouts/`, `_includes/`, `_data/`, `assets/` | Соглашения Jekyll: без них сборка не находит макеты, include-файлы и данные. |
+| `assets/`, `data/` | Стили и значок страниц; роли и кандидаты для сверки с SSOT. |
 | `content/` | Копии исходных артефактов (SSOT), из которых строятся страница и PDF. |
-| `scripts/` | Генерация и проверка PDF — обязательный шаг workflow публикации. |
+| `scripts/` | Сборка страниц, генерация и проверка PDF — обязательные шаги workflow публикации. |
 | `tests/` | Проверки, которые запускает workflow до публикации. В `experiments/` их держать нельзя: это не эксперименты, а обязательный шаг публикации. |
 
 Файлы вне каталога проекта:
 
-- `.github/workflows/pages.yml` и `pages-check.yml` — GitHub Actions читает
-  workflow только из `.github/workflows/` в корне репозитория. Оба workflow
-  срабатывают только на изменения этого каталога (`paths`).
-- `_config.yml` в корне — настройки сайта (`title`, `description`, `includes_dir`,
-  `layouts_dir`, `data_dir`, исключения). GitHub Pages («Deploy from a branch:
-  main, /») собирает репозиторий из корня и читает только корневой `_config.yml`;
-  материалы портала исключены из публикации.
-- `index.html` в корне — редирект на страницу программы.
+- `.github/workflows/pages.yml` — GitHub Actions читает workflow только из
+  `.github/workflows/` в корне репозитория; он собирает и публикует весь сайт.
+- `scripts/build-site.mjs` в корне — сборка сайта целиком: стартовая страница (`hub/`),
+  эта брошюра, витрина BCREQ (`/mango/`, см. [`projects/mango-bcreq/`](../mango-bcreq/README.md)).
 - `_site/` в корне — временный результат сборки, в git не попадает.
 
 ## Что проверяется
@@ -128,7 +118,7 @@ projects/ai-team-management-program/
   `target="_blank"` и `rel="noopener noreferrer"`.
 - **Финальная версия.** Нет сокращения «а.ч.» (только «ак.ч.»), пометок о правках
   («исправлено», «версия N», «было/стало»); раздела «Почему так» в `brochure.html` нет.
-- **Команда.** `_data/team.yml` совпадает с источниками: роли и требования — со
+- **Команда.** `data/team.yml` совпадает с источниками: роли и требования — со
   строками таблицы «Команда» в 01, строки кандидатов, легенда и «Источники:» —
   с разделом [4] в 03, число кандидатов — с числом их строк в [4]. В
   `brochure.html` каждая строка кандидата и все ссылки на источники есть; на
@@ -153,13 +143,14 @@ projects/ai-team-management-program/
 Решение постановщика (issue #65, комментарий к PR #66):
 
 - **PDF** (`brochure.html` → `brochure.pdf`) — раздел [4] из `03-appendix.md`
-  полностью, слово в слово, с гиперссылками на источники (`_includes/team-pdf.html`
-  меняет только разметку: «|» → «\|», чтобы kramdown не делал из строки таблицу);
+  полностью, слово в слово, с гиперссылками на источники (`pdfAppendix` в
+  `scripts/render.mjs` меняет только разметку: «|» → «\|», чтобы строка кандидата не
+  стала таблицей);
 - **веб-страница** — только заголовок «[4] Кандидаты на роли» и абзац «Смотри PDF.»
-  со ссылкой на `brochure.pdf` (`_includes/team.html`; то же — `web_appendix` в
-  `tests/check_site.py`).
+  со ссылкой на `brochure.pdf` (`webAppendix` в `scripts/render.mjs`; то же —
+  `web_appendix` в `tests/check_site.py`).
 
-`_data/team.yml` — роли (`roles`) и кандидаты (`candidates`: `role`, `slot`, `name`,
+`data/team.yml` — роли (`roles`) и кандидаты (`candidates`: `role`, `slot`, `name`,
 `company`, `fact`, `gra`, `sources`) — служит для сверки [4] с SSOT и проверки PDF.
 
 ## Экономика (01 и 05)
@@ -173,33 +164,24 @@ projects/ai-team-management-program/
   повторного — OPEX 2 220 800 ₽ (= 2 116 800 ₽ за 20 участников + 5 × 20 800 ₽);
 - маржа = (выручка − себестоимость) / выручка: первый поток −10,3%, повторный 47,1%.
 
-## Публикация: однократная настройка
+## Публикация
 
-Обязательных шагов нет: брошюра и PDF публикуются при обоих источниках Pages.
-
-- **Источник Pages.** При «Deploy from a branch» (текущая настройка) сайт
-  публикует штатная «pages build and deployment», `brochure.pdf` берётся из
-  репозитория (его обновляет job `sync-pdf`). Если `main` защищён от push
-  `github-actions[bot]`, job завершится ошибкой с подсказкой. Рекомендуемая
-  настройка — Settings → Pages → Source: **GitHub Actions**: тогда job `deploy`
-  публикует `_site` вместе с только что сгенерированным PDF, коммит не нужен.
+Брошюра публикуется вместе со всем сайтом workflow `.github/workflows/pages.yml`
+(источник Pages — **GitHub Actions**). Однократная настройка владельцем репозитория
+описана в корневом [README](../../README.md#публикация-сайта-однократная-настройка).
 
 ## Локальная сборка и проверки
 
-Из корня репозитория (нужны Docker, Node.js ≥ 22.13, Chrome или Chromium, шрифты
+Из корня репозитория (нужны Node.js ≥ 22.13, Chrome или Chromium, шрифты
 Liberation Sans или DejaVu Sans):
 
 ```sh
-# 1. Jekyll — тем же образом, что actions/jekyll-build-pages (или sh experiments/build-site.sh)
-docker run --rm -v "$PWD":/github/workspace -e GITHUB_WORKSPACE=/github/workspace \
-  -e INPUT_SOURCE=. -e INPUT_DESTINATION=./_site \
-  -e GITHUB_REPOSITORY=G-Ivan-A/open-ai.ru -e INPUT_TOKEN="$(gh auth token)" \
-  ghcr.io/actions/jekyll-build-pages:v1.0.13
-sudo chown -R "$(id -u):$(id -g)" _site
-
-# 2. PDF и его проверка (CHROME_PATH — если Chrome не в PATH)
+# 1. Страницы брошюры (весь сайт — npm run build в корне, см. корневой README)
 cd projects/ai-team-management-program
 npm ci
+node scripts/build-site.mjs        # → _site/projects/ai-team-management-program/
+
+# 2. PDF и его проверка (CHROME_PATH — если Chrome не в PATH)
 npm run pdf                       # → _site/projects/ai-team-management-program/brochure.pdf
 npm run check:pdf
 npm run pdf -- --out brochure.pdf # обновить копию в репозитории

@@ -1,0 +1,369 @@
+/*
+ * Стартовая страница open-ai.ru (issue #68, ФТ-1, ФТ-6, НФТ-6).
+ * Дизайн-язык: системный sans-serif (одно семейство + моноширинный для кода),
+ * три цвета — тёмно-синий (бренд), синий (акцент, CTA), янтарный (витрина BCREQ) —
+ * плюс нейтральные. Отступы кратны 8px, скругления ≤ 8px, тень ≤ 0 4px 12px rgba(0,0,0,.1),
+ * переходы ≤ 200 мс и только для цвета/тени/сдвига — взаимодействие не блокируют.
+ * Тёмная тема — автоматически по prefers-color-scheme. Контраст текста ≥ 4,5:1
+ * (проверка: tests/hub.test.mjs).
+ */
+
+:root {
+  --navy: #14233d;
+  --accent: #1d4a8f;
+  --amber: #b45309;
+
+  --ink: #1a1f29;
+  --muted: #4a5466;
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --tint: #f4f6f9;
+  --line: #d3d8e0;
+  --hero-ink: #ffffff;
+  --hero-muted: #d3d8e0;
+  --button-bg: var(--accent);
+  --button-ink: #ffffff;
+  --button-hover: var(--navy);
+  --link: var(--accent);
+  --focus: var(--accent);
+  --tag: var(--amber);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Liberation Sans", Arial, "Noto Sans", sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  --radius: 8px;
+  --container: 1120px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8ecf2;
+    --muted: #b4bdcb;
+    --bg: #0e1726;
+    --surface: #16223a;
+    --tint: #0e1726;
+    --line: #34445f;
+    --hero-ink: #ffffff;
+    --hero-muted: #c6cfdc;
+    --button-bg: #8db8ff;
+    --button-ink: #0e1726;
+    --button-hover: #b9d3ff;
+    --link: #8db8ff;
+    --focus: #8db8ff;
+    --tag: #f0a35c;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--tint);
+}
+
+a {
+  color: var(--link);
+  text-underline-offset: 2px;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.9375em;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.container {
+  width: 100%;
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding: 0 32px;
+  }
+}
+
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--link);
+  z-index: 10;
+}
+
+.skip-link:focus {
+  top: 8px;
+}
+
+/* Hero */
+
+.hero {
+  padding: 48px 0 56px;
+  background: var(--navy);
+  color: var(--hero-ink);
+}
+
+.hero__eyebrow {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hero-muted);
+}
+
+.hero__title {
+  margin: 0 0 16px;
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+.hero__lead {
+  max-width: 72ch;
+  margin: 0;
+  font-size: 1.125rem;
+  color: var(--hero-muted);
+}
+
+@media (min-width: 768px) {
+  .hero {
+    padding: 72px 0 80px;
+  }
+
+  .hero__title {
+    font-size: 2.5rem;
+  }
+}
+
+/* Карточки проектов */
+
+.projects {
+  padding: 40px 0 64px;
+}
+
+.projects__title {
+  margin: 0 0 24px;
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 768px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 32px;
+  }
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transition: box-shadow 200ms ease, transform 200ms ease, border-color 200ms ease;
+}
+
+.card--mango {
+  border-top-color: var(--amber);
+}
+
+.card--mango .card__tag {
+  color: var(--tag);
+}
+
+.card:hover,
+.card:focus-within {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+@media (min-width: 768px) {
+  .card {
+    padding: 32px;
+  }
+}
+
+.card__icon {
+  display: block;
+  width: 48px;
+  height: 48px;
+  margin: 0 0 16px;
+}
+
+.card__tag {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--link);
+}
+
+.card__title {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+.card__text {
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+
+.card__meta {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+  margin: auto 0 0;
+  padding-top: 8px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 32px;
+  border-radius: var(--radius);
+  background: var(--button-bg);
+  color: var(--button-ink);
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 200ms ease, box-shadow 200ms ease;
+}
+
+.button:hover {
+  background: var(--button-hover);
+  box-shadow: var(--shadow-hover);
+}
+
+.card__link {
+  display: inline-block;
+  padding: 8px 0;
+  font-weight: 700;
+}
+
+/* Подвал */
+
+.site-footer {
+  padding: 24px 0 32px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.site-footer p {
+  margin: 0;
+}
+
+/* Простые страницы (404, описание витрины) */
+
+.page {
+  padding: 40px 0 64px;
+}
+
+.page__body {
+  max-width: 72ch;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+@media (min-width: 768px) {
+  .page__body {
+    padding: 32px;
+  }
+}
+
+.page__body h2 {
+  margin: 24px 0 8px;
+  font-size: 1.25rem;
+}
+
+.page__body h2:first-child {
+  margin-top: 0;
+}
+
+.page__body p,
+.page__body ul,
+.page__body dl {
+  margin: 0 0 16px;
+}
+
+.page__body dt {
+  font-weight: 700;
+}
+
+.page__body dd {
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+
+.crumbs {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+}
+
+.crumbs a {
+  color: var(--hero-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+  }
+
+  .card:hover,
+  .card:focus-within {
+    transform: none;
+  }
+}

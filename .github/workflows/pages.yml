@@ -1,107 +1,38 @@
-# Публикация цифровой брошюры «ИИ в работе с командой» на GitHub Pages.
-# Источник сборки — корень репозитория (_config.yml берёт макеты и данные из
-# projects/ai-team-management-program), как и у штатной «pages build and deployment».
+# Сайт open-ai.ru на GitHub Pages (issue #68): стартовая страница с двумя проектами, брошюра
+# «ИИ в работе с командой» (/projects/ai-team-management-program/) и витрина BCREQ (/mango/).
+# Один стек — Node и статический HTML/JS (НФТ-3); Jekyll не используется.
 #
-# 1. Jekyll собирает index.html (веб-брошюра) и brochure.html (источник PDF) из content/*.md.
-# 2. Puppeteer открывает brochure.html и печатает A4 с полями 2 см в
-#    _site/projects/ai-team-management-program/brochure.pdf; check-pdf.mjs сверяет PDF
-#    с content/*.md (порядок 01 → 02 → 05 → 03, дословность, встроенные шрифты).
-# 3. Публикация:
-#    - Settings → Pages → Source: GitHub Actions — job deploy публикует _site вместе с PDF;
-#    - Deploy from a branch (legacy) — сайт публикует штатная сборка из main, поэтому
-#      job sync-pdf коммитит свежий brochure.pdf в main (если content/ изменился) и
-#      запускает сборку Pages.
-name: Pages — ИИ в работе с командой
+# Витрина забирается из приватного репозитория спицы (projects/mango-bcreq/source.json:
+# репозиторий, полный SHA коммита, отпечаток каталога site/) по секрету MANGO_SITE_TOKEN —
+# fine-grained PAT с правом Contents: Read-only на этот репозиторий. Ручного копирования нет.
+#
+#   pull request — сборка и все проверки. Есть секрет (PR из этого репозитория) — с настоящей
+#                  витриной; нет (PR из форка) — с публичной тестовой витриной
+#                  projects/mango-bcreq/tests/fixture, ничего не публикуется.
+#   main         — сборка из спицы на закреплённом коммите, проверки и публикация. Без секрета
+#                  или с отозванным токеном сборка останавливается с причиной (ГК-2);
+#                  источник Pages должен быть «GitHub Actions» (Settings → Pages → Source).
+name: Pages — open-ai.ru
 
 on:
   push:
     branches: [main]
-    paths:
-      - "_config.yml"
-      - "index.html"
-      - "projects/ai-team-management-program/**"
-      - ".github/workflows/pages.yml"
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('pages-pr-{0}', github.ref) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  PROJECT: projects/ai-team-management-program
-  SITE: _site/projects/ai-team-management-program
+  BROCHURE: projects/ai-team-management-program
+  PUBLISH: ${{ github.event_name != 'pull_request' }}
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    outputs:
-      pdf_stale: ${{ steps.pdf.outputs.stale }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Build with Jekyll
-        uses: actions/jekyll-build-pages@v1
-        with:
-          source: ./
-          destination: ./_site
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: ${{ env.PROJECT }}/package-lock.json
-
-      - name: Install PDF tools and Cyrillic fonts
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq fonts-liberation fonts-dejavu-core
-          npm ci --prefix "$PROJECT"
-
-      - name: Generate brochure.pdf (A4, 2 cm margins)
-        run: |
-          # Контейнер jekyll-build-pages пишет _site от root.
-          sudo chown -R "$(id -u):$(id -g)" _site
-          npm run pdf --prefix "$PROJECT" -- --site "$GITHUB_WORKSPACE/$SITE"
-          ls -l "$SITE/brochure.pdf"
-
-      - name: Check brochure.pdf against content/ (SSOT)
-        run: npm run check:pdf --prefix "$PROJECT" -- --site "$GITHUB_WORKSPACE/$SITE"
-
-      - name: Check site against content/ (SSOT)
-        run: |
-          # В корне публикации — только редирект и сайт программы, без материалов портала.
-          extra="$(find _site -type f ! -path "$SITE/*" ! -path _site/index.html)"
-          if [ -n "$extra" ]; then echo "::error title=Лишние файлы в публикации::$extra"; exit 1; fi
-          grep -q 'url=projects/ai-team-management-program/' _site/index.html
-          python3 "$PROJECT/tests/check_contrast.py"
-          SITE_DIR="$SITE" python3 -m unittest discover -s "$PROJECT/tests" -p "test_*.py" -v
-          python3 "$PROJECT/tests/check_site.py" --site "$SITE" --require-pdf
-
-      - name: Compare with committed brochure.pdf
-        id: pdf
-        run: |
-          built="$(node "$PROJECT/scripts/pdf-hash.mjs" --site "$SITE")"
-          committed="$(node "$PROJECT/scripts/pdf-hash.mjs" --pdf "$PROJECT/brochure.pdf")"
-          echo "Сборка: ${built}; в репозитории: ${committed}"
-          if [ "$built" = "$committed" ]; then echo "stale=false" >> "$GITHUB_OUTPUT"; else echo "stale=true" >> "$GITHUB_OUTPUT"; fi
-
-      - name: Upload brochure.pdf
-        uses: actions/upload-artifact@v7
-        with:
-          name: brochure-pdf
-          path: ${{ env.SITE }}/brochure.pdf
-          if-no-files-found: error
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v5
-
-  # Источник Pages: «workflow» (GitHub Actions) или «legacy» (Deploy from a branch).
+  # Источник Pages и путь сайта на хостинге (base path нужен странице 404).
   source:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -109,28 +40,204 @@ jobs:
       pages: read
     outputs:
       build_type: ${{ steps.pages.outputs.build_type }}
+      base_path: ${{ steps.pages.outputs.base_path }}
     steps:
       - name: Check Pages source
         id: pages
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO_NAME: ${{ github.event.repository.name }}
         run: |
-          # Pages не включён — «none»: ни публикации, ни коммита PDF.
-          # При 404 gh api печатает JSON ошибки в stdout, поэтому значение проверяется явно.
-          build_type="$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .build_type 2>/dev/null)" || build_type=none
+          # При 404 gh api печатает JSON ошибки в stdout, поэтому значения проверяются явно.
+          info="$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq '[.build_type, .html_url] | @tsv' 2>/dev/null)" || info=""
+          build_type="$(printf '%s' "$info" | cut -f1)"
+          html_url="$(printf '%s' "$info" | cut -f2)"
           case "$build_type" in workflow|legacy) ;; *) build_type=none ;; esac
+          base_path="$(node -e 'try { console.log(new URL(process.argv[1]).pathname) } catch { console.log("") }' "$html_url")"
+          case "$base_path" in /*/|/) ;; *) base_path="/${REPO_NAME}/" ;; esac
           echo "build_type=${build_type}" >> "$GITHUB_OUTPUT"
-          if [ "$build_type" = "none" ]; then
-            echo "::notice title=Pages source::GitHub Pages в репозитории не включён: сборка и проверки выполнены, публикации нет."
-          elif [ "$build_type" != "workflow" ]; then
-            echo "::notice title=Pages source::Источник GitHub Pages — «${build_type}»: сайт публикует штатная «pages build and deployment» из main, brochure.pdf берётся из репозитория (его обновляет job sync-pdf). Чтобы публиковать PDF прямо из этой сборки, выберите Settings → Pages → Source: GitHub Actions."
+          echo "base_path=${base_path}" >> "$GITHUB_OUTPUT"
+          echo "Pages: источник ${build_type}, адрес ${html_url:-—}, base path ${base_path}"
+          if [ "$build_type" != "workflow" ]; then
+            echo "::warning title=Источник Pages — «${build_type}»::До слияния (или до следующего запуска на main) владелец репозитория выбирает Settings → Pages → Source: GitHub Actions и добавляет секрет MANGO_SITE_TOKEN. Сайт больше не собирается Jekyll: штатная сборка «Deploy from a branch» после слияния опубликует main без стартовой страницы и витрины."
           fi
 
-  deploy:
-    needs: [build, source]
-    if: needs.source.outputs.build_type == 'workflow'
+  build:
+    needs: source
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
+    outputs:
+      expected: ${{ steps.lock.outputs.version }} ${{ steps.lock.outputs.commit }}
+    env:
+      BASE_PATH: ${{ needs.source.outputs.base_path }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            ${{ env.BROCHURE }}/package-lock.json
+
+      - name: Install dependencies and Cyrillic fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-liberation fonts-dejavu-core
+          npm ci
+          npm ci --prefix "$BROCHURE"
+
+      - name: Read pinned showcase source (source.json)
+        id: lock
+        run: node projects/mango-bcreq/scripts/lock.mjs --github-output
+
+      # ГК-2: без секрета или с отозванным токеном публикация останавливается с причиной.
+      # В pull request без секрета (форк) — сборка с тестовой витриной.
+      - name: Check access to the showcase repository
+        id: access
+        env:
+          MANGO_SITE_TOKEN: ${{ secrets.MANGO_SITE_TOKEN }}
+        run: |
+          if [ -z "$MANGO_SITE_TOKEN" ] && [ "$PUBLISH" != "true" ]; then
+            echo "::notice title=Тестовая витрина::Секрет MANGO_SITE_TOKEN недоступен в этом pull request — сайт собирается и проверяется с projects/mango-bcreq/tests/fixture. Публикация из main забирает настоящую витрину."
+            echo "mode=fixture" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          node projects/mango-bcreq/scripts/check-access.mjs
+          echo "mode=spoke" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch showcase site/ at the pinned commit
+        if: steps.access.outputs.mode == 'spoke'
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ steps.lock.outputs.repository }}
+          ref: ${{ steps.lock.outputs.commit }}
+          token: ${{ secrets.MANGO_SITE_TOKEN }}
+          path: .spoke/main
+          persist-credentials: false
+          sparse-checkout: |
+            ${{ steps.lock.outputs.path }}
+            ${{ steps.lock.outputs.scenarios-path }}
+
+      - name: Fetch scenario baselines (browser-smoke.js)
+        if: steps.access.outputs.mode == 'spoke'
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ steps.lock.outputs.repository }}
+          ref: ${{ steps.lock.outputs.before-browser-smoke }}
+          token: ${{ secrets.MANGO_SITE_TOKEN }}
+          path: .spoke/smoke
+          persist-credentials: false
+          sparse-checkout: ${{ steps.lock.outputs.path }}
+
+      - name: Fetch scenario baselines (route-browser.js)
+        if: steps.access.outputs.mode == 'spoke'
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ steps.lock.outputs.repository }}
+          ref: ${{ steps.lock.outputs.before-route-browser }}
+          token: ${{ secrets.MANGO_SITE_TOKEN }}
+          path: .spoke/route
+          persist-credentials: false
+          sparse-checkout: ${{ steps.lock.outputs.path }}
+
+      - name: Select showcase source
+        id: mango
+        env:
+          MODE: ${{ steps.access.outputs.mode }}
+          SPOKE_PATH: ${{ steps.lock.outputs.path }}
+        run: |
+          if [ "$MODE" = "spoke" ]; then
+            echo "source=.spoke/main/${SPOKE_PATH}" >> "$GITHUB_OUTPUT"
+            echo "lock=projects/mango-bcreq/source.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "source=projects/mango-bcreq/tests/fixture/site" >> "$GITHUB_OUTPUT"
+            echo "lock=projects/mango-bcreq/tests/fixture/source.json" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Содержимое site/ сверяется с отпечатком из source.json до сборки; расхождение — отказ.
+      - name: Build site
+        run: |
+          node scripts/build-site.mjs --mango-source "${{ steps.mango.outputs.source }}" \
+            --mango-lock "${{ steps.mango.outputs.lock }}" --base-path "$BASE_PATH" --out _site
+
+      # brochure.pdf из репозитория публикуется как есть (повторная публикация побайтово та же),
+      # если он соответствует content/*.md; иначе печатается заново из этой сборки.
+      - name: Brochure PDF
+        run: |
+          built="$(node "$BROCHURE/scripts/pdf-hash.mjs" --site "_site/$BROCHURE")"
+          committed="$(node "$BROCHURE/scripts/pdf-hash.mjs" --pdf "$BROCHURE/brochure.pdf")"
+          echo "Источники PDF: сборка ${built}; brochure.pdf в репозитории ${committed}"
+          if [ "$built" != "$committed" ]; then
+            echo "::warning title=brochure.pdf устарел::brochure.pdf в репозитории не соответствует content/*.md — публикуется PDF, напечатанный этой сборкой. Обновите файл в репозитории: cd $BROCHURE && npm ci && node scripts/build-site.mjs && npm run pdf -- --out brochure.pdf"
+            npm run pdf --prefix "$BROCHURE" -- --site "$GITHUB_WORKSPACE/_site/$BROCHURE"
+          fi
+          npm run check:pdf --prefix "$BROCHURE" -- --site "$GITHUB_WORKSPACE/_site/$BROCHURE"
+
+      - name: Check brochure against content/ (SSOT)
+        run: |
+          python3 "$BROCHURE/tests/check_contrast.py"
+          SITE_DIR="_site/$BROCHURE" python3 -m unittest discover -s "$BROCHURE/tests" -p "test_*.py"
+          python3 "$BROCHURE/tests/check_site.py" --site "_site/$BROCHURE" --require-pdf
+
+      - name: Check site (old URLs, links, isolation, privacy)
+        run: node scripts/check-site.mjs --site _site --base "$BASE_PATH" --lock "${{ steps.mango.outputs.lock }}"
+
+      - name: Unit and browser tests
+        run: npm test
+
+      - name: Showcase works identically to the spoke (browser)
+        run: |
+          mkdir -p reports
+          node scripts/check-mango.mjs --site _site --reference "${{ steps.mango.outputs.source }}" \
+            --lock "${{ steps.mango.outputs.lock }}" --base "$BASE_PATH" --report reports/check-mango.json
+
+      - name: Spoke Playwright scenarios on the deployed showcase
+        if: steps.access.outputs.mode == 'spoke'
+        env:
+          SPOKE_PATH: ${{ steps.lock.outputs.path }}
+          SCENARIOS: ${{ steps.lock.outputs.scenarios-path }}
+        run: |
+          node scripts/run-spoke-scenarios.mjs --scenarios ".spoke/main/$SCENARIOS" \
+            --reference ".spoke/main/$SPOKE_PATH" --after _site/mango \
+            --smoke-before ".spoke/smoke/$SPOKE_PATH" --route-before ".spoke/route/$SPOKE_PATH" \
+            --out "$RUNNER_TEMP/scenarios" --report reports/spoke-scenarios.json
+
+      - name: Site fingerprint
+        run: |
+          node --input-type=module -e "
+            import { treeHash } from './projects/mango-bcreq/scripts/tree.mjs';
+            const site = treeHash('_site'), mango = treeHash('_site/mango');
+            console.log('_site: ' + site.files + ' файлов, sha256 ' + site.sha256);
+            console.log('_site/mango: ' + mango.files + ' файлов, sha256 ' + mango.sha256);
+          " | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload reports and brochure.pdf
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: site-checks
+          path: |
+            reports/
+            _site/${{ env.BROCHURE }}/brochure.pdf
+          if-no-files-found: ignore
+
+      - name: Upload Pages artifact
+        if: env.PUBLISH == 'true' && steps.access.outputs.mode == 'spoke'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: [source, build]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       pages: write
       id-token: write
@@ -138,48 +245,42 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Require Pages source «GitHub Actions»
+        env:
+          BUILD_TYPE: ${{ needs.source.outputs.build_type }}
+        run: |
+          if [ "$BUILD_TYPE" != "workflow" ]; then
+            echo "::error title=Сайт не опубликован: источник Pages — «${BUILD_TYPE}»::Владелец репозитория: Settings → Pages → Build and deployment → Source: GitHub Actions, затем Actions → «Pages — open-ai.ru» → Run workflow (ветка main). Сайт собирается этим workflow без Jekyll; «Deploy from a branch» не публикует стартовую страницу и витрину."
+            exit 1
+          fi
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
 
-  # Deploy from a branch: штатная сборка публикует brochure.pdf из main, поэтому
-  # свежий PDF коммитится в репозиторий, когда content/ (или вёрстка брошюры) изменились.
-  sync-pdf:
-    needs: [build, source]
-    if: >-
-      needs.source.outputs.build_type == 'legacy' &&
-      needs.build.outputs.pdf_stale == 'true' &&
-      github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-      pages: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Download brochure.pdf
-        uses: actions/download-artifact@v8
-        with:
-          name: brochure-pdf
-          path: ${{ runner.temp }}/brochure
-
-      - name: Commit brochure.pdf
+      # Опубликованный сайт отдаёт новую сборку: версия и коммит витрины совпадают с source.json.
+      - name: Check published site
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          EXPECTED: ${{ needs.build.outputs.expected }}
         run: |
-          cp "$RUNNER_TEMP/brochure/brochure.pdf" "$PROJECT/brochure.pdf"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$PROJECT/brochure.pdf"
-          if git diff --cached --quiet; then echo "brochure.pdf не изменился"; exit 0; fi
-          git commit -m "chore(brochure): regenerate brochure.pdf from content/*.md"
-          git pull --rebase origin main
-          if ! git push origin HEAD:main; then
-            echo "::error title=brochure.pdf не опубликован::Не удалось записать brochure.pdf в main (защита ветки?). Разрешите github-actions[bot] push в main или выберите Settings → Pages → Source: GitHub Actions — тогда PDF публикуется из сборки без коммита."
+          expected="$EXPECTED"
+          for attempt in $(seq 1 20); do
+            got="$(curl -fsS -H 'Cache-Control: no-cache' "${PAGE_URL}mango/deploy.json?run=${GITHUB_RUN_ID}-${attempt}" \
+              | node -e 'let s = ""; process.stdin.on("data", (d) => s += d).on("end", () => { try { const d = JSON.parse(s); console.log(d.version + " " + d.commit) } catch { console.log("") } })')" || got=""
+            if [ "$got" = "$expected" ]; then break; fi
+            echo "Попытка ${attempt}: опубликовано «${got:-—}», ожидается «${expected}»"
+            sleep 15
+          done
+          if [ "$got" != "$expected" ]; then
+            echo "::error title=Опубликованная витрина не обновилась::${PAGE_URL}mango/deploy.json: «${got:-—}» вместо «${expected}»"
             exit 1
           fi
-
-      - name: Rebuild GitHub Pages
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --jq .status
+          for rel in "" mango/ projects/ai-team-management-program/ projects/ai-team-management-program/brochure.pdf projects/mango-bcreq/; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' "${PAGE_URL}${rel}")"
+            echo "${code} ${PAGE_URL}${rel}"
+            [ "$code" = "200" ] || { echo "::error title=Адрес недоступен::${PAGE_URL}${rel} → ${code}"; exit 1; }
+          done
+          code="$(curl -s -o /dev/null -w '%{http_code}' "${PAGE_URL}mango/ain-06")"
+          echo "${code} ${PAGE_URL}mango/ain-06 (404.html переадресует в витрину)"
+          [ "$code" = "404" ] || { echo "::error title=Страница 404::${PAGE_URL}mango/ain-06 → ${code}"; exit 1; }

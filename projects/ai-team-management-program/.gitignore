@@ -1,6 +1,3 @@
-# Локальная сборка Jekyll
+# Локальная сборка
 _site/
-.jekyll-cache/
-.jekyll-metadata
-.sass-cache/
 __pycache__/

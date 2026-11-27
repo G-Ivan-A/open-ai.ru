@@ -1,0 +1,14 @@
+{
+  "repository": "example-owner/fixture-spoke",
+  "commit": "0123456789abcdef0123456789abcdef01234567",
+  "path": "site",
+  "version": "1.0.0",
+  "tree": {
+    "sha256": "286a64cdd0476a2853d349cafec1b7c935700b6645fc6df4573ca97aae239ff6",
+    "files": 8
+  },
+  "scenarios": {
+    "path": "experiments/issue_500",
+    "runs": []
+  }
+}

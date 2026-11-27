@@ -1,0 +1,18 @@
+{
+  "name": "open-ai-ru-site",
+  "private": true,
+  "description": "Сборка и проверка сайта open-ai.ru: стартовая страница, брошюра «ИИ в работе с командой», витрина BCREQ (/mango/)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "node scripts/build-site.mjs",
+    "check": "node scripts/check-site.mjs",
+    "test": "node --test --test-timeout=120000 \"tests/**/*.test.mjs\"",
+    "serve": "node scripts/static-server.mjs --root _site"
+  },
+  "devDependencies": {
+    "playwright-core": "1.65.1"
+  }
+}

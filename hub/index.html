@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>open-ai.ru — проекты</title>
+  <meta name="description" content="Стартовая страница open-ai.ru: программа «ИИ в работе с командой» и витрина промптов BCREQ (mango).">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#14233d">
+  <link rel="icon" href="{{asset:assets/favicon.svg}}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{asset:assets/hub.css}}">
+  <script>
+    // Старые закладки вида open-ai.ru/#passport вели в брошюру (корень был переадресацией).
+    // Якоря, которых нет на этой странице, по-прежнему открывают брошюру (НФТ-1).
+    (function () {
+      var own = {{landingIds}};
+      var id = decodeURIComponent(location.hash.slice(1));
+      if (id && own.indexOf(id) < 0) location.replace("projects/ai-team-management-program/" + location.hash);
+    })();
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#projects">К списку проектов</a>
+
+  <header class="hero" id="top">
+    <div class="container">
+      <p class="hero__eyebrow">open-ai.ru</p>
+      <h1 class="hero__title">Проекты open-ai.ru</h1>
+      <p class="hero__lead">Здесь два независимых проекта. «ИИ в работе с командой» — программа перехода команды от ручной рутины к работе с ИИ-агентами. BCREQ (mango) — витрина промптов и стандартов для подготовки спецификации бизнес-требований. Каждый проект открывается в своём разделе; вернуться сюда можно по ссылке «Все проекты».</p>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="projects" id="projects" aria-labelledby="projects-title">
+      <div class="container">
+        <h2 class="projects__title" id="projects-title">Выберите проект</h2>
+        <ul class="cards">
+          <li class="card" id="project-team">
+            <img class="card__icon" src="{{asset:assets/icon-team.svg}}" alt="Значок программы: участники команды и ИИ-агент" width="48" height="48">
+            <p class="card__tag">Текущий проект</p>
+            <h3 class="card__title">«ИИ в работе с командой»</h3>
+            <p class="card__text">Цифровая брошюра программы: резюме, паспорт проекта и приложение. PDF-версия — для печати и рассылки.</p>
+            <p class="card__actions">
+              <a class="button" href="projects/ai-team-management-program/" aria-label="Открыть проект «ИИ в работе с командой»">Открыть</a>
+              <a class="card__link" href="projects/ai-team-management-program/brochure.pdf" aria-label="Скачать PDF-брошюру программы «ИИ в работе с командой»">PDF-брошюра</a>
+            </p>
+          </li>
+          <li class="card card--mango" id="project-mango">
+            <img class="card__icon" src="{{asset:assets/icon-mango.svg}}" alt="Значок витрины BCREQ: документ с шагами процесса" width="48" height="48">
+            <p class="card__tag">Витрина промптов</p>
+            <h3 class="card__title">BCREQ (mango)</h3>
+            <p class="card__text">Каталог промптов и шаги процесса подготовки BCREQ: просмотр, поиск и копирование промптов, стандарты и справочник терминов.</p>
+            <p class="card__meta">Версия v{{mango.version}} · коммит источника <code>{{mango.short}}</code></p>
+            <p class="card__actions">
+              <a class="button" href="mango/" aria-label="Открыть витрину BCREQ (mango)">Открыть</a>
+              <a class="card__link" href="projects/mango-bcreq/" aria-label="О витрине BCREQ (mango): источник и версия">О витрине</a>
+            </p>
+          </li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>open-ai.ru · <a href="https://github.com/G-Ivan-A/open-ai.ru" rel="noopener noreferrer">исходный код сайта на GitHub</a></p>
+    </div>
+  </footer>
+</body>
+</html>

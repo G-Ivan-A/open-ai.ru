@@ -3,7 +3,7 @@
 //
 //   node scripts/build-pdf.mjs [--site <каталог сборки>] [--out <файл.pdf>]
 //
-// --site  — каталог собранного Jekyll сайта программы
+// --site  — каталог собранного сайта программы (scripts/build-site.mjs)
 //           (по умолчанию _site/projects/ai-team-management-program в корне репозитория);
 // --out   — путь PDF (по умолчанию <site>/brochure.pdf).
 // Браузер — системный Chrome/Chromium: переменная CHROME_PATH или google-chrome,
@@ -68,7 +68,7 @@ function chromePath() {
 const site = path.resolve(arg('--site', DEFAULT_SITE));
 const out = path.resolve(arg('--out', path.join(site, 'brochure.pdf')));
 const html = path.join(site, 'brochure.html');
-if (!existsSync(html)) throw new Error(`Нет ${html}: сначала соберите сайт Jekyll`);
+if (!existsSync(html)) throw new Error(`Нет ${html}: сначала соберите сайт: node scripts/build-site.mjs`);
 
 const browser = await puppeteer.launch({
   executablePath: chromePath(),
