@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <script src="gate.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>Fixture BA Prompts</title>
+  </head>
+  <body>
+    <header>
+      <nav aria-label="Разделы">
+        <a href="#about">О витрине</a> · <a href="#catalog">Каталог</a> · <a href="#processes">Процесс</a> · <a href="#glossary">Глоссарий</a>
+      </nav>
+    </header>
+    <main>
+      <section data-page="about" id="about" hidden><h1>Синтетическая витрина</h1><p>Тестовый двойник site/ спицы для проверок open-ai.ru.</p></section>
+      <section data-page="catalog" id="catalog">
+        <h2>Каталог</h2>
+        <label>Поиск <input id="search-input" type="search" /></label>
+        <div id="filters"></div>
+        <p id="result-count"></p>
+        <div id="prompt-grid"></div>
+      </section>
+      <section data-page="standards" id="standards" hidden><h2>Стандарты</h2><p>Стандарт BCREQ.</p></section>
+      <section data-page="dashboard" id="dashboard" hidden><h2>Панель</h2><p>Первая часть.</p></section>
+      <section data-page="dashboard" id="dashboard-more" hidden><p>Вторая часть панели.</p></section>
+      <section data-page="roadmap" id="roadmap" hidden><h2>Дорожная карта</h2></section>
+      <section data-page="processes" id="processes" hidden>
+        <h2>Процесс</h2>
+        <div id="step-format-switch">
+          <a href="#processes?track=decomposed" data-step-format="decomposed">Декомпозиция</a>
+          <a href="#processes?track=system" data-step-format="system">Системный</a>
+        </div>
+        <div id="steps"></div>
+      </section>
+      <section data-page="patterns" id="patterns" hidden><h2>Паттерны</h2></section>
+      <section data-page="glossary" id="glossary" hidden><h2>Глоссарий</h2><dl><dt>BCREQ</dt><dd>Спецификация бизнес-требований.</dd></dl></section>
+    </main>
+    <footer class="site-footer">
+      Fixture BA Prompts · версия сайта <a class="site-version" href="https://github.com/example-owner/fixture-spoke/blob/main/CHANGELOG.md">v1.0.0</a>
+    </footer>
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
