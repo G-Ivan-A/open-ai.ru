@@ -2,9 +2,12 @@
 //   • «/каталог/» → index.html; «/каталог» без слэша → 301 на «/каталог/»;
 //   • отсутствующий путь → 404.html из корня сайта со статусом 404 (как Pages);
 //   • mounts — дополнительные префиксы, отданные из других каталогов. Их использует
-//     прогон сценариев спицы: /before/site/ — исходный срез, /after/site/ — /mango/.
+//     прогон сценариев спицы: /before/site/ — исходный срез, /after/site/ — /mango/;
+//   • base — путь сайта, как у project Pages (/open-ai.ru/): root отдаётся под ним,
+//     всё вне base — 404.
 //
-//   node scripts/static-server.mjs --root _site [--port 8137] [--mount /after/site/=_site/mango]
+//   node scripts/static-server.mjs --root _site [--port 8137] [--base /open-ai.ru/]
+//                                  [--mount /after/site/=_site/mango]
 import { createServer } from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -27,18 +30,20 @@ const TYPES = {
 };
 
 // Каталог и путь внутри него для URL: самый длинный подходящий префикс mounts, иначе root.
-function resolve(urlPath, root, mounts) {
+function resolve(urlPath, root, mounts, base) {
   const mount = mounts
     .filter(([prefix]) => urlPath.startsWith(prefix))
     .sort((a, b) => b[0].length - a[0].length)[0];
-  const [prefix, dir] = mount ?? ['/', root];
+  if (!mount && !`${urlPath}/`.startsWith(base)) return null;
+  const [prefix, dir] = mount ?? [base, root];
+  if (urlPath.length < prefix.length) return dir;
   const rel = urlPath.slice(prefix.length);
   const file = path.resolve(dir, `.${path.posix.sep}${rel}`);
   // Выход за пределы каталога (../) — как отсутствующий файл.
   return file === dir || file.startsWith(dir + path.sep) ? file : null;
 }
 
-export function serve({ root, port = 0, host = '127.0.0.1', mounts = [] }) {
+export function serve({ root, port = 0, host = '127.0.0.1', mounts = [], base = '/' }) {
   root = path.resolve(root);
   mounts = mounts.map(([prefix, dir]) => [prefix, path.resolve(dir)]);
   const requests = [];
@@ -50,7 +55,7 @@ export function serve({ root, port = 0, host = '127.0.0.1', mounts = [] }) {
       res.writeHead(400).end();
       return;
     }
-    let file = resolve(urlPath, root, mounts);
+    let file = resolve(urlPath, root, mounts, base);
     if (file && existsSync(file) && statSync(file).isDirectory()) {
       if (!urlPath.endsWith('/')) {
         const url = new URL(req.url, 'http://x');
@@ -89,6 +94,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     return i >= 0 ? args[i + 1] : fallback;
   };
   const mounts = args.flatMap((a, i) => (a === '--mount' ? [args[i + 1].split('=')] : []));
-  const { url } = await serve({ root: value('--root', '_site'), port: Number(value('--port', 8137)), mounts });
-  console.log(`Сайт: ${url}/`);
+  const base = value('--base', '/');
+  const { url } = await serve({ root: value('--root', '_site'), port: Number(value('--port', 8137)), mounts, base });
+  console.log(`Сайт: ${url}${base}`);
 }

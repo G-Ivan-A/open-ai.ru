@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Страница не найдена — open-ai.ru</title>
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#14233d">
+  <link rel="icon" href="{{asset:assets/favicon.svg}}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{asset:assets/hub.css}}">
+  <script>
+    // GitHub Pages отдаёт этот файл на любой несуществующий путь сайта (issue #68, ГК-1).
+    // Витрина BCREQ — SPA с hash-роутером, поэтому «человеческие» адреса вглубь витрины
+    // (/mango/ain-06, /mango/ш-3, /mango/catalog) переводятся в её hash-маршруты:
+    //   /mango/<шаг>     → /mango/#processes?step=<КОД>[&<query>]
+    //   /mango/<раздел>  → /mango/#<раздел>[?<query>]
+    // Остальные адреса — обычная страница 404 со ссылками на проекты.
+    // BASE — путь сайта на хостинге (actions/configure-pages → base_path), подставлен при сборке.
+    (function () {
+      var BASE = {{basePathJson}};
+      var STEPS = {{stepsJson}};
+      var PAGES = {{pagesJson}};
+      var LATIN = { A: "А", B: "В", V: "В", R: "Р", S: "С", C: "С" };
+      var path = location.pathname;
+      try { path = decodeURIComponent(path); } catch (e) { return; }
+      var prefix = BASE + "mango/";
+      if (path.indexOf(prefix) !== 0) return;
+      var rest = path.slice(prefix.length).replace(/\/+$/, "");
+      if (!rest || rest.indexOf("/") >= 0) return;
+      var key = rest.toUpperCase().replace(/^SH-/, "Ш-").replace(/^(Ш-)([A-Z])$/, function (m, p, l) { return p + (LATIN[l] || l); });
+      var query = location.search.slice(1);
+      var target = null;
+      if (STEPS.indexOf(key) >= 0) target = "#processes?step=" + encodeURIComponent(key) + (query ? "&" + query : "");
+      else if (PAGES.indexOf(rest.toLowerCase()) >= 0) target = "#" + rest.toLowerCase() + (query ? "?" + query : "");
+      if (target) location.replace(prefix + target);
+    })();
+  </script>
+</head>
+<body>
+  <header class="hero">
+    <div class="container">
+      <p class="hero__eyebrow">open-ai.ru</p>
+      <h1 class="hero__title">Страница не найдена</h1>
+      <p class="hero__lead">По этому адресу ничего нет. Возможно, ссылка устарела или в ней опечатка.</p>
+    </div>
+  </header>
+  <main id="main" class="page">
+    <div class="container">
+      <div class="page__body">
+        <h2>Куда перейти</h2>
+        <ul>
+          <li><a href="{{base}}">Все проекты open-ai.ru</a></li>
+          <li><a href="{{base}}projects/ai-team-management-program/">«ИИ в работе с командой»</a></li>
+          <li><a href="{{base}}mango/">Витрина BCREQ (mango)</a></li>
+        </ul>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

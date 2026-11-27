@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>О витрине BCREQ (mango) — open-ai.ru</title>
+  <meta name="description" content="Что такое витрина BCREQ (mango), откуда она берётся и какая версия опубликована на open-ai.ru.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#14233d">
+  <link rel="icon" href="{{asset:assets/favicon.svg}}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{asset:assets/hub.css}}">
+</head>
+<body>
+  <a class="skip-link" href="#main">К описанию</a>
+  <header class="hero">
+    <div class="container">
+      <p class="crumbs"><a href="../../">Все проекты</a></p>
+      <h1 class="hero__title">О витрине BCREQ (mango)</h1>
+      <p class="hero__lead">Витрина промптов и стандартов для подготовки спецификации бизнес-требований (BCREQ): каталог промптов, шаги процесса Ш-0 → AIN-01…24 → Ш-3…Ш-В, стандарты и справочник терминов.</p>
+    </div>
+  </header>
+  <main id="main" class="page">
+    <div class="container">
+      <div class="page__body">
+        <h2>Открыть витрину</h2>
+        <p><a class="button" href="../../mango/" aria-label="Открыть витрину BCREQ (mango)">Открыть</a></p>
+
+        <h2>Опубликованная версия</h2>
+        <dl>
+          <dt>Версия сборки</dt>
+          <dd>v{{mango.version}}</dd>
+          <dt>Коммит репозитория-источника</dt>
+          <dd><code>{{mango.commit}}</code></dd>
+          <dt>Файлов в сборке</dt>
+          <dd>{{mango.files}} (SHA-256 дерева <code>{{mango.tree}}</code>)</dd>
+          <dt>Паспорт публикации</dt>
+          <dd><a href="../../mango/deploy.json">mango/deploy.json</a></dd>
+        </dl>
+
+        <h2>Откуда берётся витрина</h2>
+        <p>Мастер промптов, стандартов и норм — репозиторий {{mango.repository}}. Он приватный: тексты промптов редактируются только там, а open-ai.ru — хостинг уже собранной витрины. При публикации сайта workflow open-ai.ru по токену только для чтения забирает каталог <code>site/</code> строго на зафиксированном коммите, сверяет SHA-256 всех файлов и только после этого выкладывает витрину в раздел <code>/mango/</code>. Если доступа нет или сборка не совпадает, публикация останавливается — пустая или битая витрина не выкладывается.</p>
+        <p>Ссылки ниже ведут в приватный репозиторий: они открываются только у участников с доступом и не используются сайтом для загрузки кода или данных.</p>
+        <ul>
+          <li><a href="{{mango.repositoryUrl}}" rel="nofollow noopener noreferrer">Репозиторий-источник {{mango.repository}}</a> (приватный, нужен доступ)</li>
+          <li><a href="{{mango.repositoryUrl}}/tree/{{mango.commit}}/{{mango.path}}" rel="nofollow noopener noreferrer">Каталог {{mango.path}}/ на опубликованном коммите</a> (приватный, нужен доступ)</li>
+        </ul>
+      </div>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container">
+      <p><a href="../../">Все проекты open-ai.ru</a></p>
+    </div>
+  </footer>
+</body>
+</html>
