@@ -68,7 +68,7 @@ export function patchApp(js, { v }) {
 }
 
 export function patchGate(js) {
-  return replaceCounted(js, /const HOME_URL = "[^"]*";/, 'const HOME_URL = baseUrl.href; // open-ai.ru: главная витрины — /mango/',
+  return replaceCounted(js, /const HOME_URL = "[^"]*";/g, 'const HOME_URL = baseUrl.href; // open-ai.ru: главная витрины — /mango/',
     1, 'gate.js: HOME_URL');
 }
 

@@ -259,6 +259,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       pages: Object.keys(deployed.pages).length,
       blockedExternalHosts: deployed.external,
     };
+  } catch (error) {
+    // Сбой прогона (витрина не загрузилась, таймаут) — тоже расхождение, с причиной в отчёте.
+    problems.push(`прогон прерван: ${error.message.split('\n')[0]}`);
   } finally {
     await browser.close();
     await server.close();
