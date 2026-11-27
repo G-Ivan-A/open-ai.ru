@@ -1,5 +1,5 @@
 // Общие функции генерации и проверки brochure.pdf.
-// SSOT — content/*.md; порядок PDF и правило согласия кандидатов (_data/team.yml) — здесь же,
+// SSOT — content/*.md; порядок PDF и правило согласия кандидатов (data/team.yml) — здесь же,
 // чтобы скрипт генерации и проверка не расходились.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -39,7 +39,7 @@ export function arg(name, fallback) {
   return i > -1 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 }
 
-// Разбор YAML-подмножества _data/team.yml: словари, списки словарей, строки в
+// Разбор YAML-подмножества data/team.yml: словари, списки словарей, строки в
 // кавычках, true/false, комментарии «#» в начале строки. Внешних библиотек нет:
 // файл поддерживается вручную и имеет фиксированную структуру. Тот же разбор —
 // parse_yaml в tests/check_site.py.
@@ -76,17 +76,17 @@ export function parseYaml(text) {
   return lines.length ? node(indent(lines[0])) : {};
 }
 
-export function team(teamYml = path.join(PROJECT, '_data', 'team.yml')) {
+export function team(teamYml = path.join(PROJECT, 'data', 'team.yml')) {
   return parseYaml(readFileSync(teamYml, 'utf8'));
 }
 
-// Кандидаты из _data/team.yml: [{ role, slot, name, company, fact, gra, sources }].
+// Кандидаты из data/team.yml: [{ role, slot, name, company, fact, gra, sources }].
 export function candidates(teamYml) {
   return team(teamYml).candidates ?? [];
 }
 
 // Разделы H2, которые в PDF не выводятся (issue #63) — то же правило, что
-// в brochure.html (_includes/drop-sections.html) и tests/check_site.py (BROCHURE_SKIP).
+// в brochure.html (scripts/build-site.mjs) и tests/check_site.py (BROCHURE_SKIP).
 export const PDF_SKIP = {
   'content/01-project-summary.md': ['Почему так'],
 };

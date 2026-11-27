@@ -14,7 +14,7 @@
 #
 # Вывод (issue #65, комментарий к PR #66): в PDF раздел [4] — полностью, дословно, со ссылками
 # (content/03-appendix.md как есть); на веб-странице — только «[4] Кандидаты на роли — смотри PDF»
-# (_includes/team.html). Эти данные — для сверки [4] с SSOT и проверки PDF (scripts/check-pdf.mjs).
+# (webAppendix в scripts/render.mjs). Эти данные — для сверки [4] с SSOT и проверки PDF (scripts/check-pdf.mjs).
 
 roles:
   - id: lead-expert

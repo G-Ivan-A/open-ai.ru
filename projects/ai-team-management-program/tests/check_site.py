@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Проверка собранной цифровой брошюры против источников истины (content/*.md).
 
-Запуск (после сборки Jekyll):
+Запуск (после сборки: node scripts/build-site.mjs):
 
     python3 tests/check_site.py --site ../../_site/projects/ai-team-management-program
     python3 tests/check_site.py --site … --require-pdf   # brochure.pdf уже сгенерирован
@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import json
 import re
 import sys
 from html.parser import HTMLParser
@@ -43,7 +44,7 @@ WEB_SOURCES = [
 # Разделы H2, которые не публикуются на веб-странице (цены — только в PDF).
 WEB_SKIP = {"content/01-project-summary.md": ["Экономика"]}
 # Разделы H2, которые не входят в PDF-брошюру (issue #63) — то же правило, что
-# _includes/drop-sections.html в brochure.html и PDF_SKIP в scripts/brochure-common.mjs.
+# PDF_SKIP в scripts/brochure-common.mjs.
 BROCHURE_SKIP = {"content/01-project-summary.md": ["Почему так"]}
 
 # PDF-брошюра: строгий порядок 01 → 02 → 05 → 03.
@@ -61,6 +62,10 @@ NAV = [
 ]
 PDF_LINK_TEXT = "📥 Скачать PDF-брошюру программы"
 PDF_HREF = "brochure.pdf"
+# Подвал: выход на стартовую страницу сайта (issue #68, ФТ-3/ГК-1) — относительный путь,
+# чтобы ссылка работала и на https://g-ivan-a.github.io/open-ai.ru/, и при локальной сборке.
+HOME_LINK_TEXT = "Все проекты"
+HOME_HREF = "../../"
 
 PUBLISHED = {
     "index.html", "brochure.html", "brochure.pdf",
@@ -245,11 +250,11 @@ def md_tables(markdown: str) -> int:
     return sum(1 for b in re.split(r"\n\s*\n", markdown) if b.lstrip("\n").startswith("|"))
 
 
-TEAM_YML = PROJECT / "_data" / "team.yml"
+TEAM_YML = PROJECT / "data" / "team.yml"
 
 
 def parse_yaml(text: str):
-    """YAML-подмножество _data/team.yml: словари, списки словарей, строки в кавычках,
+    """YAML-подмножество data/team.yml: словари, списки словарей, строки в кавычках,
     true/false, комментарии «#» в начале строки (стандартная библиотека не читает YAML).
     Тот же разбор — parseYaml в scripts/brochure-common.mjs."""
     lines = [l.rstrip() for l in text.replace("\r", "").split("\n") if l.strip() and not l.strip().startswith("#")]
@@ -311,14 +316,14 @@ TEAM_WEB_STUB = "Смотри [PDF](brochure.pdf)."
 
 
 def web_appendix(markdown: str) -> str:
-    """То же правило, что _includes/team.html (issue #65): на веб-странице текст раздела [4]
+    """То же правило, что webAppendix в scripts/render.mjs (issue #65): на веб-странице текст раздела [4]
     (последний раздел 03-appendix.md) заменён абзацем «Смотри PDF.»; в PDF — полностью."""
     head = markdown.split(f"\n{TEAM_HEADING}\n")[0]
     return f"{head}\n{TEAM_HEADING}\n\n{TEAM_WEB_STUB}\n"
 
 
 def check_team_data(data: dict, r: Report):
-    """_data/team.yml дословно совпадает с SSOT: роли — с таблицей «Команда» (01),
+    """data/team.yml дословно совпадает с SSOT: роли — с таблицей «Команда» (01),
     кандидаты и их источники — с разделом [4] (03). Изменить данные кандидата
     можно только вместе с content/03-appendix.md (issue #65)."""
     summary = (CONTENT / "01-project-summary.md").read_text(encoding="utf-8")
@@ -327,32 +332,32 @@ def check_team_data(data: dict, r: Report):
     table = summary.split("\n## Команда\n")[1].split("\n## ")[0]
     rows = [[x.strip() for x in l.strip().strip("|").split("|")] for l in table.splitlines() if l.startswith("|")][2:]
     r.check([[x.get("name"), x.get("task"), x.get("requirement")] for x in roles] == rows,
-            "_data/team.yml: roles (name, task, requirement) не совпадают с таблицей «Команда» в 01-project-summary.md")
+            "data/team.yml: roles (name, task, requirement) не совпадают с таблицей «Команда» в 01-project-summary.md")
     section = appendix.split("\n## [4] ")[1].split("\n## ")[0]
     paras = [" ".join(p.split()) for p in section.split("\n\n")]
     for x in roles:
         if x.get("note"):
-            r.check(f'**{x["note"]}**' in paras, f'_data/team.yml: note роли «{x["name"]}» не совпадает с [4] в 03-appendix.md')
+            r.check(f'**{x["note"]}**' in paras, f'data/team.yml: note роли «{x["name"]}» не совпадает с [4] в 03-appendix.md')
     ids = {x.get("id") for x in roles}
     rows4 = [p for p in paras if re.match(r"^[^|:]+ \d+: .*\| Метка GRA: ", p)]
-    r.check(len(rows4) == len(cands), f"_data/team.yml: кандидатов {len(cands)}, а строк кандидатов в [4] — {len(rows4)}")
+    r.check(len(rows4) == len(cands), f"data/team.yml: кандидатов {len(cands)}, а строк кандидатов в [4] — {len(rows4)}")
     for c in cands:
         slot = c.get("slot", "")
         role = next((x for x in roles if x.get("id") == c.get("role")), None)
         r.check(c.get("role") in ids and role is not None and slot.startswith(role["name"] + " "),
-                f"_data/team.yml: у кандидата «{slot}» неверная роль «{c.get('role')}»")
+                f"data/team.yml: у кандидата «{slot}» неверная роль «{c.get('role')}»")
         r.check(all(c.get(k) for k in ("name", "company", "fact", "gra", "sources")),
-                f"_data/team.yml: у кандидата «{slot}» нет name, company, fact, gra или sources")
+                f"data/team.yml: у кандидата «{slot}» нет name, company, fact, gra или sources")
         if all(c.get(k) for k in ("name", "company", "fact", "gra")):
-            r.check(candidate_line(c) in paras, f"_data/team.yml: данные кандидата «{slot}» не совпадают со строкой [4] в 03-appendix.md")
+            r.check(candidate_line(c) in paras, f"data/team.yml: данные кандидата «{slot}» не совпадают со строкой [4] в 03-appendix.md")
     src = next((p for p in paras if p.startswith("**Источники:**")), "")
     if all(c.get("sources") for c in cands):
         r.check(squash(sources_line(cands)) == squash(src),
-                "_data/team.yml: sources кандидатов не совпадают со строкой «Источники:» в [4] 03-appendix.md")
+                "data/team.yml: sources кандидатов не совпадают со строкой «Источники:» в [4] 03-appendix.md")
 
 
 def drop_sections(markdown: str, titles: list[str]) -> str:
-    """Убирает разделы H2 с заголовками titles (как параметр skip в _includes/md-doc.html)."""
+    """Убирает разделы H2 с заголовками titles (как параметр skip у mdDoc в scripts/render.mjs)."""
     parts = markdown.split("\n## ")
     return "\n## ".join([parts[0]] + [p for p in parts[1:] if p.split("\n", 1)[0].strip() not in titles])
 
@@ -368,8 +373,8 @@ def read_source(rel: str, data: dict, web: bool = False) -> str:
 
 
 def config_value(key: str) -> str:
-    m = re.search(rf'^{key}:\s*"?(.*?)"?\s*$', (REPO / "_config.yml").read_text(encoding="utf-8"), re.M)
-    return m.group(1) if m else ""
+    """Метаданные страницы из site.json (title, description, lang)."""
+    return str(json.loads((PROJECT / "site.json").read_text(encoding="utf-8")).get(key, ""))
 
 
 # ---------------------------------------------------------------- HTML -----
@@ -485,7 +490,7 @@ def check_structure(doc: Node, r: Report, title: str):
     root = doc.find("html")
     r.check(root is not None and root.attrs.get("lang") == "ru", "у <html> нет lang=\"ru\"")
     t = doc.find("title")
-    r.check(t is not None and t.text().strip() == title, f"<title> должен быть «{title}» (title в _config.yml)")
+    r.check(t is not None and t.text().strip() == title, f"<title> должен быть «{title}» (title в site.json)")
     main = doc.find("main")
     r.check(main is not None, "нет <main>")
     if main is None:
@@ -497,6 +502,10 @@ def check_structure(doc: Node, r: Report, title: str):
     r.check(links == NAV, f"меню {links}, ожидается {NAV}")
     for _, href in NAV:
         r.check(doc.find(id=href[1:]) is not None, f"пункт меню {href} ведёт на несуществующий раздел")
+    footer = doc.find("footer")
+    home = [(a.text().strip(), a.attrs.get("href")) for a in footer.find_all("a")] if footer else []
+    r.check(home == [(HOME_LINK_TEXT, HOME_HREF)],
+            f"подвал: ссылки {home}, ожидается выход на стартовую страницу {[(HOME_LINK_TEXT, HOME_HREF)]}")
     scripts = [s.attrs.get("src") for s in doc.find_all("script")]
     r.check(scripts == [], f"на странице не должно быть скриптов, найдено {scripts}")
     for img in doc.find_all("img"):
@@ -561,7 +570,7 @@ def check_links(name: str, doc: Node, r: Report):
 
 
 def check_web(doc: Node, site: Path, data: dict, r: Report, title: str):
-    ui = {title, PDF_LINK_TEXT, *(t for t, _ in NAV)}
+    ui = {title, PDF_LINK_TEXT, HOME_LINK_TEXT, *(t for t, _ in NAV)}
     body = doc.find("body")
     if body is None:
         r.check(False, "нет <body>")
@@ -667,7 +676,7 @@ def run(site: Path, require_pdf: bool = False) -> Report:
     check_team_data(data, r)
     summary = read_source("content/01-project-summary.md", data, web=True)
     r.check(bool(title) and squash(title) in squash(md_blocks(summary)[0][1]),
-            "title в _config.yml должен быть частью H1 01-project-summary.md")
+            "title в site.json должен быть частью H1 01-project-summary.md")
 
     src = index.read_text(encoding="utf-8")
     doc = parse_html(src)
